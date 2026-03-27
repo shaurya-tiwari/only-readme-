@@ -3,7 +3,7 @@
 # 🛵 RideShield — Parametric AI Insurance for Gig Delivery Workers
 
 > [!TIP]
-> **View Repo Content:** &nbsp; 📜 **[Project Overview](README.md)** &nbsp; | &nbsp; 🏗️ **[Architecture & Roadmap](README2.md)**
+> **View Repo Content:** &nbsp;  | &nbsp; 🏗️ **[Architecture & Roadmap](README2.md)**
 
 ---
 
