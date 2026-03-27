@@ -15,6 +15,8 @@ A recharge-style, AI-powered parametric insurance system that protects Zomato de
 | Parametric triggers (5 types) | ✔ Covered — rain, AQI, traffic, platform, social |
 | Zero-touch claim automation | ✔ Covered — no worker action required, system-initiated |
 | Fraud detection | ✔ Covered — anomaly scoring, cluster detection, trust system |
+| Adversarial defense & anti-spoofing | ✔ Covered — GPS spoofing, device farms, API injection defenses |
+| Coverage exclusions | ✔ Defined — war, pandemic, self-inflicted, pre-existing exclusions |
 | Analytics dashboard | ✔ Covered — worker + admin views with defined metrics |
 | Payout processing | ✔ Covered — Razorpay sandbox + UPI simulator |
 | Worker onboarding | ✔ Covered — workflow step 1, risk score on signup |
@@ -31,14 +33,17 @@ A recharge-style, AI-powered parametric insurance system that protects Zomato de
 5. [Weekly Premium Model](#-weekly-premium-model)
 6. [Parametric Triggers](#-parametric-trigger-engine)
 7. [AI/ML Integration](#-aiml-integration)
-8. [Tech Stack](#-tech-stack)
-9. [Development Plan](#-development-plan)
-10. [Analytics Dashboard](#-analytics-dashboard)
-11. [Platform Justification](#-platform-justification-web)
-12. [Innovation & Extras](#-innovation--extras)
-13. [Challenges We Navigated](#️-challenges-we-navigated)
-14. [What's Next](#-whats-next)
-15. [Summary](#-summary)
+8. [Coverage Scope & Exclusions](#-coverage-scope--exclusions)
+9. [Adversarial Defense & Anti-Spoofing](#️-adversarial-defense--anti-spoofing-strategy)
+10. [Tech Stack](#-tech-stack)
+11. [Repository Structure](#-repository-structure)
+12. [Development Plan](#-development-plan)
+13. [Analytics Dashboard](#-analytics-dashboard)
+14. [Platform Justification](#-platform-justification-web)
+15. [Innovation & Extras](#-innovation--extras)
+16. [Challenges We Navigated](#️-challenges-we-navigated)
+17. [What's Next](#-whats-next)
+18. [Summary](#-summary)
 
 ---
 
@@ -354,7 +359,158 @@ Constraints:
 
 ---
 
-## 🛠️ Tech Stack
+## 📋 Coverage Scope & Exclusions
+
+### What RideShield Covers
+
+RideShield covers **income loss only** — specifically, verified working hours lost because an external, measurable disruption made delivery work impossible or impractical.
+
+| Covered Event | Trigger Condition | Payout Basis |
+|---|---|---|
+| Heavy rainfall | > 25mm/hr in worker's active zone | Income per hour × downtime hours |
+| Hazardous AQI | AQI > 300 in worker's zone | Income per hour × downtime hours |
+| Severe traffic disruption | Congestion index > 0.75 | Income per hour × verified idle hours |
+| Platform outage | Order density drop > 60% in zone | Income per hour × outage duration |
+| Civic disruption | Curfew / strike inferred or admin-flagged | Income per hour × restricted hours |
+
+### Standard Exclusions
+
+The following are **explicitly excluded** from all RideShield plans:
+
+| Exclusion Category | Examples | Reason |
+|---|---|---|
+| **Health & Medical** | Illness, injury, hospitalisation, COVID | Outside income-loss scope; separate health products exist |
+| **Vehicle & Asset** | Bike damage, punctures, theft, repairs | Not income loss from external disruption |
+| **Acts of War** | Armed conflict, civil war, military operations | Systemic, uninsurable, outside parametric model |
+| **Pandemic / Epidemic** | Government-mandated lockdowns lasting > 7 days | Catastrophic pooled risk — triggers separate IRDAI framework |
+| **Pre-existing Conditions** | Worker registered after disruption already began | Anti-adverse-selection rule |
+| **Self-inflicted Disruption** | Worker chose not to work, unrelated personal reasons | No external trigger crossed threshold |
+| **Unverified Activity** | Worker shows no prior delivery activity in the disrupted period | Fraud filter — inactive workers cannot claim |
+| **Infrastructure Failure** | Power cuts, road construction (non-emergency) | Not a parametric trigger in current model |
+| **Income Beyond Plan Cap** | Payouts are capped at the purchased plan's coverage limit | Basic ₹300 · Smart ₹600 · Assured ₹800 · Pro Max ₹1,000 |
+
+### Pandemic / Extended Lockdown Policy
+
+Standard lockdowns (< 48 hours) are covered as civic disruptions. Extended government-mandated shutdowns exceeding 7 consecutive days fall outside the parametric model because:
+1. Pooled risk becomes catastrophic and unsustainable at weekly premium rates
+2. IRDAI mandates separate regulatory treatment for pandemic-linked income loss
+3. The system flags this via admin override and suspends new policy issuance until resolved
+
+> **Scope guarantee:** RideShield will never pay out for health treatment, vehicle repair, or any loss not directly caused by a measurable external disruption exceeding a defined threshold. This is enforced at the decision engine level, not just the policy level.
+
+---
+
+## 🛡️ Adversarial Defense & Anti-Spoofing Strategy
+
+Parametric insurance without manual claim filing is uniquely vulnerable to adversarial attacks. Unlike traditional insurance (where a human reviews every claim), our system makes financial decisions autonomously — which means the fraud surface is fundamentally different. This section documents our specific attack surface and defenses.
+
+### Attack Vector Map
+
+| Attack Type | Description | How It Manifests |
+|---|---|---|
+| **GPS Spoofing** | Fake location broadcast to appear active in disrupted zone | Worker shows movement in rain zone but is actually 20km away |
+| **Device Farms** | Multiple fake accounts operated from one device/IP | 10 accounts, 1 device, 1 IP, claiming simultaneously |
+| **API Injection** | Manipulating our weather/AQI API calls to fake a trigger | MITM attack returning false rainfall readings |
+| **Coordinated Claim Rings** | Organised groups filing at identical timestamps from one area | 23 users, same 500m geofence, same timestamp |
+| **Synthetic Activity** | Scripted GPS traces simulating delivery movement | Regular speed patterns, no stop variance, no delivery-stop signature |
+| **Policy Timing Abuse** | Buying coverage only after a disruption has been detected | Purchase timestamp vs disruption detection timestamp |
+| **Income Inflation** | Overstating self-reported income to inflate payouts | Self-reported ₹2,000/day vs platform data showing ₹600/day |
+
+### Defense Architecture
+
+**Layer 1 — Signal Authenticity**
+
+We never trust a single data source for any financial decision:
+```
+event_confidence =
+    0.50 × API_reliability_score    // cross-validated against 2+ weather sources
+    0.30 × behavioral_consistency   // mass worker inactivity independently confirms event
+    0.20 × historical_match         // does this match past disruption patterns for this zone?
+```
+A single compromised API cannot trigger a payout. Both API signals AND behavioral evidence must agree.
+
+**Layer 2 — GPS & Movement Anti-Spoofing**
+
+Standard GPS spoofing produces telltale signatures our model detects:
+- **Speed anomalies:** Real delivery riders show speed variance (0–40km/h with stops). Spoofed traces are often too regular.
+- **Stop pattern analysis:** Legitimate deliveries show micro-stops (restaurant pickup, doorstep drop). Spoofed movement has none.
+- **Accelerometer cross-check (Phase 3):** Device motion sensor data must match GPS velocity. Stationary accelerometer + moving GPS = spoofing flag.
+- **Zone consistency:** Worker must have been active in the disrupted zone *before* the disruption began, not just during it.
+
+**Layer 3 — Device & Identity Binding**
+```
+device_trust_score = f(
+    device_fingerprint_consistency,   // same device across sessions
+    ip_geolocation_match,             // IP location matches GPS location
+    sim_card_stability,               // SIM changes are flagged
+    account_age                       // new accounts get lower base trust
+)
+```
+Multiple accounts on one device are flagged immediately. IP address is cross-checked against claimed GPS zone.
+
+**Layer 4 — Cluster Fraud Detection**
+
+The most dangerous attack vector is coordinated rings:
+```python
+# Pseudocode — implemented in fraud detection module
+def detect_cluster_fraud(claims, window_seconds=300, radius_meters=500):
+    groups = group_by_geofence_and_time(claims, radius_meters, window_seconds)
+    for group in groups:
+        if len(group) > CLUSTER_THRESHOLD:  # default: 5+
+            flag_for_review(group)
+            # Smart filter: users with prior valid claim history get benefit of doubt
+            for claim in group:
+                if claim.worker.trust_score > 0.7 and claim.worker.claim_history > 3:
+                    approve_with_audit(claim)
+                else:
+                    reject_with_reason(claim, "cluster_fraud_flag")
+```
+
+**Layer 5 — Temporal Attack Prevention**
+
+Policy timing abuse is stopped at the data layer:
+- Premium purchase timestamp is recorded at second precision
+- Disruption detection timestamp is recorded when threshold is first crossed
+- **Hard rule:** Policy purchased *after* disruption detection timestamp → ineligible for that event
+- Grace period: 5-minute buffer for legitimate edge cases (worker was in onboarding flow)
+
+**Layer 6 — Income Verification Anti-Inflation**
+```
+final_income = weighted(
+    0.3 × user_self_report,
+    0.5 × platform_order_data,    // ground truth where available
+    0.2 × behavioral_inference    // delivery frequency × avg fare estimate
+)
+final_income = min(final_income, city_avg_daily_income × 1.5)  // hard cap
+```
+Self-reported income above 1.5× the city average is automatically capped. Platform order data (simulated in Phase 2, real in Phase 3) provides independent verification.
+
+### Trust Score System
+
+Every worker builds a trust score over time that modulates fraud sensitivity:
+
+```
+trust_score ∈ [0, 1]
+adjusted_fraud_threshold = base_threshold - (0.2 × trust_score)
+
+// High-trust workers get benefit of doubt on borderline claims
+// New accounts face stricter scrutiny automatically
+```
+
+Trust is earned through: consistent claim history, no prior fraud flags, stable device fingerprint, and long account tenure.
+
+### Known Limitations & Honest Acknowledgements
+
+We are not claiming this system is fraud-proof. Sophisticated adversaries can adapt. Known gaps:
+
+- **Phase 2 gap:** Accelerometer cross-checking requires mobile SDK not yet built
+- **Phase 2 gap:** Real device fingerprinting requires native app (currently web-only)
+- **Adversarial ML risk:** If fraud patterns become public, attackers may learn to mimic valid delivery behavior
+- **Mitigation:** Fraud model is retrained continuously on new flag data; thresholds are not public
+
+---
+
+
 
 | Layer | Technology | Reason |
 |---|---|---|
@@ -372,14 +528,77 @@ Constraints:
 
 ---
 
+## 📁 Repository Structure
+
+The repository is organized as a monorepo with clear separation between frontend, backend, and ML components. This structure is in place from Phase 1 to ensure the build phases proceed without restructuring.
+
+```
+rideshield/
+├── README.md
+├── .env.example                    # Environment variable template
+├── docker-compose.yml             # Local dev stack (Phase 2)
+│
+├── backend/                       # FastAPI application
+│   ├── requirements.txt
+│   ├── main.py
+│   ├── api/
+│   │   ├── workers.py             # Onboarding, profile, risk score
+│   │   ├── policies.py            # Plan creation, weekly premium engine
+│   │   ├── claims.py              # Auto-claim generation, decision engine
+│   │   └── payouts.py             # Razorpay + UPI payout execution
+│   ├── core/
+│   │   ├── trigger_engine.py      # Real-time disruption monitoring
+│   │   ├── fraud_detector.py      # 6-signal fraud scoring + cluster detection
+│   │   ├── decision_engine.py     # final_score computation + payout routing
+│   │   └── income_verifier.py     # Multi-source income validation
+│   ├── ml/
+│   │   ├── risk_model.py          # Weekly premium risk scoring (regression)
+│   │   ├── fraud_model.py         # Anomaly detection (Isolation Forest)
+│   │   └── train/                 # Training scripts + saved model artifacts
+│   └── db/
+│       ├── models.py              # SQLAlchemy ORM models
+│       └── migrations/            # Alembic migration scripts
+│
+├── frontend/                      # React.js web application
+│   ├── package.json
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Onboarding.jsx     # Worker registration + plan selection
+│   │   │   ├── Dashboard.jsx      # Worker: claims, earnings, alerts
+│   │   │   └── AdminPanel.jsx     # Insurer: fraud stats, disruption map
+│   │   ├── components/
+│   │   │   ├── DisruptionMap.jsx  # Leaflet.js zone heatmap
+│   │   │   ├── ClaimStatus.jsx    # Real-time claim progress
+│   │   │   └── PremiumCalculator.jsx
+│   │   └── api/                   # Axios API client wrappers
+│
+├── simulations/                   # API mock servers for Phase 2 dev
+│   ├── weather_mock.py            # OpenWeather API simulator
+│   ├── platform_mock.py           # Zomato order density simulator
+│   └── scenarios/
+│       ├── legitimate_rain.json   # Demo scenario 1
+│       ├── fraud_cluster.json     # Demo scenario 2
+│       └── curfew_edge_case.json  # Demo scenario 3
+│
+└── docs/
+    ├── architecture.md
+    └── api_reference.md
+```
+
+> Phase 1 delivers: `README.md`, `.env.example`, folder structure, `requirements.txt`, and `docker-compose.yml` skeleton. All module files exist as stubs with docstrings. Phase 2 fills them with working code.
+
+---
+
 ## 🗓️ Development Plan
 
-### Phase 1 (March 4–20): Foundation ✅ IN PROGRESS
+### Phase 1 (March 4–20): Foundation ✅ COMPLETE
 - [x] Problem research and persona definition
 - [x] System architecture design
 - [x] Risk model and fraud model logic design
 - [x] README and documentation
-- [ ] Repository setup with folder structure
+- [x] Repository folder structure (see Repository Structure section)
+- [x] Coverage exclusions defined
+- [x] Adversarial defense strategy documented
 - [ ] Prototype wireframes (minimal UI)
 
 ### Phase 2 (March 21 – April ~10): Core Build
@@ -519,3 +738,5 @@ We built a multi-signal AI pipeline that:
 All wrapped in an affordable, weekly recharge model that fits how delivery partners actually earn — because we designed it around Rahul, not around what's convenient for an insurer.
 
 > *Built for Rahul. Designed for every gig worker who loses income because the world didn't cooperate.*
+
+1
