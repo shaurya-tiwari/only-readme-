@@ -1,0 +1,59 @@
+{
+    "name": "Scenario 3: Curfew Edge Case — Ambiguous Activity",
+    "description": "Section 144 imposed. Arun claims income loss but had minimal pre-event activity and is a new user.",
+    "persona": {
+        "name": "Arun (New User)",
+        "city": "delhi",
+        "zone": "east_delhi",
+        "platform": "zomato",
+        "daily_income": 800,
+        "working_hours": 8,
+        "plan": "assured_plan"
+    },
+    "timeline": [
+        {
+            "time": "14:00-18:00",
+            "action": "minimal_activity",
+            "deliveries": 1,
+            "description": "Arun had only 1 delivery in 4 hours before curfew"
+        },
+        {
+            "time": "18:00",
+            "action": "curfew_declared",
+            "trigger_type": "social",
+            "description": "Section 144 imposed in East Delhi"
+        },
+        {
+            "time": "18:02",
+            "action": "social_disruption_detected",
+            "normalized_inactivity": 0.72,
+            "description": "72% activity drop vs expected for Friday 6 PM — mass inactivity confirmed"
+        },
+        {
+            "time": "18:03",
+            "action": "arun_analyzed",
+            "pre_event_activity": "minimal",
+            "trust_score": 0.15,
+            "account_age_days": 5,
+            "prior_claims": 0,
+            "description": "New account, near-zero pre-event deliveries"
+        },
+        {
+            "time": "18:03",
+            "action": "fraud_check",
+            "fraud_score": 0.45,
+            "flags": ["low_pre_activity", "new_account"]
+        },
+        {
+            "time": "18:03",
+            "action": "claim_delayed",
+            "status": "delayed",
+            "final_score": 0.54,
+            "review_deadline": "19:03 next day (24hr SLA)",
+            "description": "Borderline score — sent to admin review queue"
+        }
+    ],
+    "expected_outcome": "delayed",
+    "expected_payout": "pending_review",
+    "notes": "Zero-touch means workers don't file. But borderline cases get bounded human review within 24 hours."
+}

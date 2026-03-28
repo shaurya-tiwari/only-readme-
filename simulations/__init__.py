@@ -1,0 +1,1 @@
+"""Simulation layer for external API mocking."""

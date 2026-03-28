@@ -1,0 +1,82 @@
+{
+    "name": "Scenario 1: Legitimate Rain Claim",
+    "description": "Rahul is actively delivering in South Delhi. Heavy rain starts at 2 PM. System auto-detects, validates his activity, and credits payout.",
+    "persona": {
+        "name": "Rahul Kumar",
+        "city": "delhi",
+        "zone": "south_delhi",
+        "platform": "zomato",
+        "daily_income": 900,
+        "working_hours": 9,
+        "plan": "smart_protect"
+    },
+    "timeline": [
+        {
+            "time": "10:00",
+            "action": "shift_starts",
+            "description": "Rahul begins his delivery shift"
+        },
+        {
+            "time": "10:00-14:00",
+            "action": "deliveries_completed",
+            "count": 8,
+            "description": "Rahul completes 8 deliveries normally"
+        },
+        {
+            "time": "14:00",
+            "action": "rain_starts",
+            "rainfall_mm_hr": 48,
+            "threshold": 25,
+            "description": "Heavy rainfall begins — exceeds 25mm/hr threshold"
+        },
+        {
+            "time": "14:05",
+            "action": "trigger_fires",
+            "trigger_type": "rain",
+            "disruption_score": 0.78,
+            "event_confidence": 0.87
+        },
+        {
+            "time": "14:05",
+            "action": "platform_density_drops",
+            "drop_percent": 70,
+            "description": "Order density drops 70% in South Delhi"
+        },
+        {
+            "time": "14:06",
+            "action": "worker_validated",
+            "pre_event_activity": true,
+            "delivery_stops": 8,
+            "movement_verified": true,
+            "description": "GPS confirms Rahul was active before disruption"
+        },
+        {
+            "time": "14:06",
+            "action": "fraud_check_passed",
+            "fraud_score": 0.18,
+            "flags": []
+        },
+        {
+            "time": "14:06",
+            "action": "claim_generated",
+            "status": "approved",
+            "final_score": 0.82,
+            "disruption_hours": 2.5,
+            "income_per_hour": 100,
+            "peak_multiplier": 1.0,
+            "payout": 250
+        },
+        {
+            "time": "14:07",
+            "action": "payout_credited",
+            "amount": 250,
+            "channel": "wallet",
+            "transaction_id": "wallet_demo_001",
+            "description": "₹250 credited to Rahul's wallet in 90 seconds"
+        }
+    ],
+    "expected_outcome": "approved",
+    "expected_payout": 250,
+    "weather_scenario": "heavy_rain",
+    "platform_scenario": "platform_outage"
+}
