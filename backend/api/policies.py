@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 
 from backend.config import settings
 from backend.core.premium_calculator import premium_calculator
+from backend.core.session_auth import require_admin_session
 from backend.database import get_db
 from backend.db.models import AuditLog, Policy, Worker
 from backend.schemas.policy import (
@@ -418,6 +419,7 @@ async def expire_old_policies(
 @router.post("/activate-pending")
 async def activate_pending_policies(
     db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin_session),
 ):
     """
     Admin utility: activate all pending policies past their activation time.
@@ -463,6 +465,7 @@ async def activate_pending_policies(
 async def force_activate_policies(
     worker_id: UUID | None = None,
     db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin_session),
 ):
     """
     Simulation-only admin helper.

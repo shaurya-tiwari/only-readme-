@@ -114,24 +114,32 @@ class TriggerEngine:
         signals: Dict,
         disruption_score: float,
         event_confidence: float,
+        demo_run_id: str | None = None,
     ) -> Tuple[List[Event], int, int]:
-        events: List[Event] = []
-        created = 0
-        extended = 0
         now = utc_now_naive()
         hour_start = now.replace(minute=0, second=0, microsecond=0)
+        incident_type = fired_triggers[0] if len(fired_triggers) == 1 else "compound_disruption"
+        severity = self.calculate_severity(signals, fired_triggers)
+        trigger_details = {
+            trigger_type: {
+                "raw_value": signals.get(trigger_type, 0),
+                "threshold": self.THRESHOLDS[trigger_type]["threshold"],
+                "source": self.THRESHOLDS[trigger_type]["source"],
+            }
+            for trigger_type in fired_triggers
+        }
+        representative_raw = max((float(signals.get(trigger_type, 0) or 0) for trigger_type in fired_triggers), default=0.0)
+        representative_threshold = min((self.THRESHOLDS[trigger_type]["threshold"] for trigger_type in fired_triggers), default=0.0)
+        api_source = "multi_source" if len(fired_triggers) > 1 else self.THRESHOLDS[fired_triggers[0]]["source"]
 
-        for trigger_type in fired_triggers:
-            config = self.THRESHOLDS[trigger_type]
-            raw_value = signals.get(trigger_type, 0)
-            severity = self.calculate_severity(signals, [trigger_type])
-
+        existing = None
+        if not (settings.SIMULATION_MODE and demo_run_id):
             existing = (
                 await db.execute(
                     select(Event).where(
                         and_(
-                            Event.event_type == trigger_type,
                             Event.zone == zone,
+                            Event.city == city,
                             Event.status == "active",
                             Event.started_at >= hour_start,
                         )
@@ -139,56 +147,79 @@ class TriggerEngine:
                 )
             ).scalar_one_or_none()
 
-            if existing:
-                existing.severity = Decimal(str(max(float(existing.severity or 0), severity)))
-                existing.raw_value = Decimal(str(raw_value))
-                existing.disruption_score = Decimal(str(disruption_score))
-                existing.event_confidence = Decimal(str(event_confidence))
-                existing.updated_at = now
-                existing.metadata_json = {**(existing.metadata_json or {}), "last_update": now.isoformat()}
-                events.append(existing)
-                extended += 1
-                continue
-
-            event = Event(
-                event_type=trigger_type,
-                zone=zone,
-                city=city,
-                started_at=now,
-                severity=Decimal(str(severity)),
-                raw_value=Decimal(str(raw_value)),
-                threshold=Decimal(str(config["threshold"])),
-                disruption_score=Decimal(str(disruption_score)),
-                event_confidence=Decimal(str(event_confidence)),
-                api_source=config["source"],
-                status="active",
-                metadata_json={
-                    "signals_snapshot": {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))},
-                    "fired_triggers": fired_triggers,
-                    "created_by": "trigger_engine",
+        if existing:
+            existing.severity = Decimal(str(max(float(existing.severity or 0), severity)))
+            existing.raw_value = Decimal(str(representative_raw))
+            existing.threshold = Decimal(str(representative_threshold))
+            existing.disruption_score = Decimal(str(max(float(existing.disruption_score or 0), disruption_score)))
+            existing.event_confidence = Decimal(str(max(float(existing.event_confidence or 0), event_confidence)))
+            existing.updated_at = now
+            existing.event_type = incident_type
+            existing.api_source = api_source
+            existing.metadata_json = {
+                **(existing.metadata_json or {}),
+                "last_update": now.isoformat(),
+                "fired_triggers": sorted(set((existing.metadata_json or {}).get("fired_triggers", []) + fired_triggers)),
+                "trigger_details": {
+                    **((existing.metadata_json or {}).get("trigger_details") or {}),
+                    **trigger_details,
                 },
-            )
-            db.add(event)
-            await db.flush()
+                "signals_snapshot": {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))},
+            }
             db.add(
                 AuditLog(
                     entity_type="event",
-                    entity_id=event.id,
-                    action="created",
+                    entity_id=existing.id,
+                    action="event_extended",
                     details={
-                        "event_type": trigger_type,
                         "zone": zone,
-                        "raw_value": raw_value,
-                        "threshold": config["threshold"],
+                        "city": city,
+                        "event_type": incident_type,
+                        "fired_triggers": fired_triggers,
                         "disruption_score": disruption_score,
                         "event_confidence": event_confidence,
                     },
                 )
             )
-            events.append(event)
-            created += 1
+            return [existing], 0, 1
 
-        return events, created, extended
+        event = Event(
+            event_type=incident_type,
+            zone=zone,
+            city=city,
+            started_at=now,
+            severity=Decimal(str(severity)),
+            raw_value=Decimal(str(representative_raw)),
+            threshold=Decimal(str(representative_threshold)),
+            disruption_score=Decimal(str(disruption_score)),
+            event_confidence=Decimal(str(event_confidence)),
+            api_source=api_source,
+            status="active",
+            metadata_json={
+                "signals_snapshot": {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))},
+                "fired_triggers": fired_triggers,
+                "trigger_details": trigger_details,
+                "created_by": "trigger_engine",
+                "demo_run_id": demo_run_id,
+            },
+        )
+        db.add(event)
+        await db.flush()
+        db.add(
+            AuditLog(
+                entity_type="event",
+                entity_id=event.id,
+                action="created",
+                details={
+                    "event_type": incident_type,
+                    "zone": zone,
+                    "fired_triggers": fired_triggers,
+                    "disruption_score": disruption_score,
+                    "event_confidence": event_confidence,
+                },
+            )
+        )
+        return [event], 1, 0
 
     async def find_affected_workers(self, db: AsyncSession, zone: str, fired_triggers: List[str]) -> List[Dict]:
         now = utc_now_naive()
@@ -223,6 +254,7 @@ class TriggerEngine:
                     "worker": worker,
                     "policy": active_policy,
                     "covered_triggers": covered_triggers,
+                    "fired_triggers": fired_triggers,
                     "trust_score": float(worker.trust_score.score) if worker.trust_score else 0.1,
                 }
             )

@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
+from backend.core.trigger_scheduler import trigger_scheduler
 from backend.database import get_db
 
 START_TIME = datetime.now(timezone.utc)
@@ -52,6 +53,7 @@ async def config_check():
     """Show current configuration (non-sensitive)."""
     return {
         "simulation_mode": settings.SIMULATION_MODE,
+        "scheduler": trigger_scheduler.state,
         "activation_delay_hours": settings.ACTIVATION_DELAY_HOURS,
         "policy_duration_days": settings.POLICY_DURATION_DAYS,
         "triggers": {
@@ -62,6 +64,7 @@ async def config_check():
             "platform_outage_threshold": settings.PLATFORM_OUTAGE_THRESHOLD,
             "social_inactivity_threshold": settings.SOCIAL_INACTIVITY_THRESHOLD,
         },
+        "trigger_check_interval_seconds": settings.TRIGGER_CHECK_INTERVAL_SECONDS,
         "available_cities": list(settings.CITY_RISK_PROFILES.keys()),
         "available_plans": list(settings.PLAN_DEFINITIONS.keys()),
     }

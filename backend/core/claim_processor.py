@@ -33,6 +33,7 @@ class ClaimProcessor:
         zones: Optional[List[str]] = None,
         city: str = "delhi",
         scenario: Optional[str] = None,
+        demo_run_id: Optional[str] = None,
     ) -> Dict:
         if scenario:
             self._set_scenario(scenario)
@@ -44,6 +45,7 @@ class ClaimProcessor:
             "cycle_timestamp": utc_now_naive().isoformat(),
             "city": city,
             "scenario": scenario or "live",
+            "demo_run_id": demo_run_id,
             "zones_checked": zones,
             "triggers_fired": {},
             "events_created": 0,
@@ -58,7 +60,7 @@ class ClaimProcessor:
         }
 
         for zone in zones:
-            zone_result = await self._process_zone(db, zone, city)
+            zone_result = await self._process_zone(db, zone, city, demo_run_id=demo_run_id)
             results["details"].append(zone_result)
             results["triggers_fired"][zone] = zone_result["triggers_fired"]
             results["events_created"] += zone_result["events_created"]
@@ -76,7 +78,7 @@ class ClaimProcessor:
         await db.flush()
         return results
 
-    async def _process_zone(self, db: AsyncSession, zone: str, city: str) -> Dict:
+    async def _process_zone(self, db: AsyncSession, zone: str, city: str, demo_run_id: Optional[str] = None) -> Dict:
         zone_result = {
             "zone": zone,
             "signals": {},
@@ -103,6 +105,7 @@ class ClaimProcessor:
         event_confidence = trigger_engine.calculate_event_confidence(signals, fired, zone)
         events, created, extended = await trigger_engine.get_or_create_event(
             db, zone, city, fired, signals, disruption_score, event_confidence
+            , demo_run_id=demo_run_id
         )
         zone_result["events_created"] = created
         zone_result["events_extended"] = extended
@@ -110,8 +113,6 @@ class ClaimProcessor:
         affected_workers = await trigger_engine.find_affected_workers(db, zone, fired)
         for worker_info in affected_workers:
             for event in events:
-                if event.event_type not in worker_info["covered_triggers"]:
-                    continue
                 claim_result = await self._process_worker_claim(
                     db=db,
                     worker=worker_info["worker"],
@@ -120,6 +121,8 @@ class ClaimProcessor:
                     disruption_score=disruption_score,
                     event_confidence=event_confidence,
                     trust_score=worker_info["trust_score"],
+                    covered_triggers=worker_info["covered_triggers"],
+                    fired_triggers=worker_info["fired_triggers"],
                 )
                 zone_result["claim_details"].append(claim_result)
                 zone_result["claims_processed"] += 1
@@ -144,6 +147,8 @@ class ClaimProcessor:
         disruption_score: float,
         event_confidence: float,
         trust_score: float,
+        covered_triggers: list[str],
+        fired_triggers: list[str],
     ) -> Dict:
         result = {
             "worker_id": str(worker.id),
@@ -163,7 +168,6 @@ class ClaimProcessor:
                     and_(
                         Claim.worker_id == worker.id,
                         Claim.event_id == event.id,
-                        Claim.trigger_type == event.event_type,
                     )
                 )
             )
@@ -173,6 +177,22 @@ class ClaimProcessor:
             if new_hours > float(existing_claim.disruption_hours or 0):
                 existing_claim.disruption_hours = Decimal(str(new_hours))
                 existing_claim.updated_at = utc_now_naive()
+            db.add(
+                AuditLog(
+                    entity_type="claim",
+                    entity_id=existing_claim.id,
+                    action="duplicate_detected",
+                    details={
+                        "worker_id": str(worker.id),
+                        "worker_name": worker.name,
+                        "event_id": str(event.id),
+                        "event_type": event.event_type,
+                        "zone": event.zone,
+                        "covered_triggers": covered_triggers,
+                        "incident_triggers": fired_triggers,
+                    },
+                )
+            )
             result["status"] = "duplicate"
             result["details"] = {"message": "Claim already exists for this event. Extended if applicable."}
             return result
@@ -212,6 +232,11 @@ class ClaimProcessor:
             review_deadline=decision_result["review_deadline"],
             created_at=utc_now_naive(),
         )
+        claim.decision_breakdown = {
+            **decision_payload,
+            "covered_triggers": covered_triggers,
+            "incident_triggers": fired_triggers,
+        }
         if decision_result["decision"] == "rejected":
             claim.rejection_reason = decision_result["explanation"]
             claim.final_payout = Decimal("0")
@@ -228,6 +253,8 @@ class ClaimProcessor:
                     "worker_name": worker.name,
                     "event_type": event.event_type,
                     "zone": event.zone,
+                    "covered_triggers": covered_triggers,
+                    "incident_triggers": fired_triggers,
                     "final_score": decision_result["final_score"],
                     "fraud_score": fraud_result["adjusted_fraud_score"],
                     "fraud_flags": fraud_result["flags"],

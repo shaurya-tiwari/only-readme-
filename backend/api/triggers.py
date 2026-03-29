@@ -24,7 +24,13 @@ router = APIRouter(prefix="/api/triggers", tags=["Triggers"])
 async def run_trigger_check(request: TriggerCheckRequest, db: AsyncSession = Depends(get_db)):
     city = request.city or "delhi"
     zones = request.zones or settings.CITY_RISK_PROFILES.get(city, {}).get("zones", ["south_delhi"])[:2]
-    return await claim_processor.run_trigger_cycle(db=db, zones=zones, city=city, scenario=request.scenario)
+    return await claim_processor.run_trigger_cycle(
+        db=db,
+        zones=zones,
+        city=city,
+        scenario=request.scenario,
+        demo_run_id=request.demo_run_id,
+    )
 
 
 @router.get("/status")

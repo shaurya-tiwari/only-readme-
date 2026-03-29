@@ -7,7 +7,7 @@ from scripts.run_scenario import enrich_worker_for_demo
 
 
 @pytest.mark.asyncio
-async def test_trigger_cycle_creates_event_and_claim(client, valid_worker_data):
+async def test_trigger_cycle_creates_event_and_claim(client, valid_worker_data, admin_headers):
     register_response = await client.post("/api/workers/register", json=valid_worker_data)
     assert register_response.status_code == 201
     worker_id = register_response.json()["worker_id"]
@@ -15,7 +15,7 @@ async def test_trigger_cycle_creates_event_and_claim(client, valid_worker_data):
     create_policy_response = await client.post("/api/policies/create", json={"worker_id": worker_id, "plan_name": "smart_protect"})
     assert create_policy_response.status_code == 201
 
-    activate_response = await client.post("/api/policies/activate-pending")
+    activate_response = await client.post("/api/policies/activate-pending", headers=admin_headers)
     assert activate_response.status_code == 200
     assert activate_response.json()["activated_count"] >= 1
 
@@ -31,14 +31,17 @@ async def test_trigger_cycle_creates_event_and_claim(client, valid_worker_data):
 
 
 @pytest.mark.asyncio
-async def test_event_claim_and_payout_detail_endpoints(client, valid_worker_data):
+async def test_event_claim_and_payout_detail_endpoints(client, valid_worker_data, admin_headers):
     register_response = await client.post("/api/workers/register", json=valid_worker_data)
     worker_id = register_response.json()["worker_id"]
 
     create_policy_response = await client.post("/api/policies/create", json={"worker_id": worker_id, "plan_name": "smart_protect"})
     assert create_policy_response.status_code == 201
 
-    force_activate = await client.post(f"/api/policies/admin/force-activate?worker_id={worker_id}")
+    force_activate = await client.post(
+        f"/api/policies/admin/force-activate?worker_id={worker_id}",
+        headers=admin_headers,
+    )
     assert force_activate.status_code == 200
 
     trigger_response = await client.post("/api/triggers/check", json={"city": "delhi", "zones": ["south_delhi"], "scenario": "heavy_rain"})
@@ -83,7 +86,7 @@ async def test_event_claim_and_payout_detail_endpoints(client, valid_worker_data
 
 
 @pytest.mark.asyncio
-async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data):
+async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data, admin_headers):
     edge_worker_data = dict(valid_worker_data)
     edge_worker_data["name"] = "Edge Review Worker"
     edge_worker_data["phone"] = "+919999999998"
@@ -98,13 +101,16 @@ async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data
 
     await enrich_worker_for_demo(worker_id, "east_delhi", "edge")
 
-    force_activate = await client.post(f"/api/policies/admin/force-activate?worker_id={worker_id}")
+    force_activate = await client.post(
+        f"/api/policies/admin/force-activate?worker_id={worker_id}",
+        headers=admin_headers,
+    )
     assert force_activate.status_code == 200
 
     trigger_response = await client.post("/api/triggers/check", json={"city": "delhi", "zones": ["east_delhi"], "scenario": "platform_outage"})
     assert trigger_response.status_code == 200
 
-    review_queue_response = await client.get("/api/claims/review-queue")
+    review_queue_response = await client.get("/api/claims/review-queue", headers=admin_headers)
     assert review_queue_response.status_code == 200
     queue_data = review_queue_response.json()
     assert queue_data["total_pending"] >= 1
@@ -113,6 +119,7 @@ async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data
     resolve_response = await client.post(
         f"/api/claims/resolve/{claim_id}",
         json={"decision": "approve", "reason": "Manual verification passed.", "reviewed_by": "test_admin"},
+        headers=admin_headers,
     )
     assert resolve_response.status_code == 200
     resolve_data = resolve_response.json()

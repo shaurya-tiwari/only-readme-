@@ -34,11 +34,12 @@ Thumbs.db
 # Build / packaging
 build/
 dist/
+node_modules/
+frontend/dist/
 *.egg-info/
 .eggs/
 
-# Project-local docs that should not be pushed
-Sprint_1.md
-Sprint_2.md
-Sprint_3.md
-Architecture.md
+# Project-local planning docs that should not be pushed
+/Sprint_*.md
+/Architecture.md
+/DevNotes.md

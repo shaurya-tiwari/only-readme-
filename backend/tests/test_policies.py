@@ -117,7 +117,7 @@ async def test_premium_formula_correctness():
 
 
 @pytest.mark.asyncio
-async def test_force_activate_pending_policy_in_simulation_mode():
+async def test_force_activate_pending_policy_in_simulation_mode(admin_headers):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         worker_id = await create_test_worker(client, "+919988776605")
@@ -128,7 +128,10 @@ async def test_force_activate_pending_policy_in_simulation_mode():
         })
         assert create_response.status_code == 201
 
-        force_response = await client.post(f"/api/policies/admin/force-activate?worker_id={worker_id}")
+        force_response = await client.post(
+            f"/api/policies/admin/force-activate?worker_id={worker_id}",
+            headers=admin_headers,
+        )
         assert force_response.status_code == 200
         force_data = force_response.json()
         assert force_data["activated_count"] == 1

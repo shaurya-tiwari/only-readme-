@@ -3,10 +3,15 @@ RideShield Configuration
 Loads all settings from environment variables with sensible defaults.
 """
 
+import os
 from typing import Any, Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ENV = os.getenv("ENV", "dev").strip().lower()
+ENV_FILE = ".env.test" if ENV == "test" else ".env"
 
 
 class Settings(BaseSettings):
@@ -17,6 +22,10 @@ class Settings(BaseSettings):
     SQL_ECHO: bool = False
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    SESSION_SECRET: str = "rideshield-sprint3-demo-secret"
+    SESSION_DURATION_HOURS: int = 72
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "rideshield-admin"
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://rideshield:rideshield123@localhost:5433/rideshield_db"
@@ -24,6 +33,8 @@ class Settings(BaseSettings):
 
     # Simulation
     SIMULATION_MODE: bool = True
+    ENABLE_TRIGGER_SCHEDULER: bool = True
+    TRIGGER_CHECK_INTERVAL_SECONDS: int = 300
 
     # External APIs
     OPENWEATHER_API_KEY: Optional[str] = None
@@ -129,7 +140,7 @@ class Settings(BaseSettings):
     }
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
     )
 

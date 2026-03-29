@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.core.payout_executor import payout_executor
+from backend.core.session_auth import require_admin_session
 from backend.database import get_db
 from backend.db.models import AuditLog, Claim, Event, TrustScore, Worker
 from backend.schemas.claim import ClaimResolveRequest
@@ -136,7 +137,10 @@ async def get_claim_detail(claim_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/review-queue")
-async def get_review_queue(db: AsyncSession = Depends(get_db)):
+async def get_review_queue(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin_session),
+):
     claims = (
         await db.execute(
             select(Claim).options(selectinload(Claim.worker), selectinload(Claim.event)).where(Claim.status == "delayed").order_by(Claim.review_deadline.asc())
@@ -160,7 +164,12 @@ async def get_review_queue(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/resolve/{claim_id}")
-async def resolve_delayed_claim(claim_id: UUID, request: ClaimResolveRequest, db: AsyncSession = Depends(get_db)):
+async def resolve_delayed_claim(
+    claim_id: UUID,
+    request: ClaimResolveRequest,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin_session),
+):
     claim = (
         await db.execute(select(Claim).options(selectinload(Claim.worker), selectinload(Claim.policy)).where(Claim.id == claim_id))
     ).scalar_one_or_none()
@@ -225,6 +234,13 @@ async def get_claim_stats(days: int = 7, city: Optional[str] = None, db: AsyncSe
     rejected = sum(1 for claim in claims if claim.status == "rejected")
     fraud_flagged = sum(1 for claim in claims if float(claim.fraud_score or 0) >= 0.4)
     total_payout = sum(float(claim.final_payout or 0) for claim in claims if claim.status == "approved")
+    avg_final_score = round(sum(float(claim.final_score or 0) for claim in claims) / max(1, total), 3)
+    avg_fraud_score = round(sum(float(claim.fraud_score or 0) for claim in claims) / max(1, total), 3)
+    by_trigger = {}
+    for claim in claims:
+        incident_triggers = (claim.decision_breakdown or {}).get("incident_triggers") or [claim.trigger_type]
+        for trigger in incident_triggers:
+            by_trigger[trigger] = by_trigger.get(trigger, 0) + 1
     return {
         "period_days": days,
         "total_claims": total,
@@ -232,6 +248,10 @@ async def get_claim_stats(days: int = 7, city: Optional[str] = None, db: AsyncSe
         "delayed": delayed,
         "rejected": rejected,
         "approval_rate": round(approved / max(1, total) * 100, 1),
+        "delayed_rate": round(delayed / max(1, total) * 100, 1),
         "fraud_rate": round(fraud_flagged / max(1, total) * 100, 1),
+        "avg_final_score": avg_final_score,
+        "avg_fraud_score": avg_fraud_score,
+        "by_trigger": by_trigger,
         "total_payout": round(total_payout, 2),
     }

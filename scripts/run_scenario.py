@@ -67,8 +67,21 @@ async def create_worker_and_policy(
     )
     policy_response.raise_for_status()
     await enrich_worker_for_demo(worker_id, zone, profile)
-    await client.post(f"/api/policies/admin/force-activate?worker_id={worker_id}")
+    await client.post(
+        f"/api/policies/admin/force-activate?worker_id={worker_id}",
+        headers=await admin_headers(client),
+    )
     return worker_id
+
+
+async def admin_headers(client: httpx.AsyncClient) -> dict:
+    login_response = await client.post(
+        "/api/auth/admin/login",
+        json={"username": "admin", "password": "rideshield-admin"},
+    )
+    login_response.raise_for_status()
+    token = login_response.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 async def enrich_worker_for_demo(worker_id: str, zone: str, profile: str) -> None:
@@ -229,7 +242,8 @@ async def scenario_edge_case(client: httpx.AsyncClient) -> dict:
 
     claims = await client.get(f"/api/claims/worker/{worker_id}")
     claims.raise_for_status()
-    review_queue = await client.get("/api/claims/review-queue")
+    admin_auth_headers = await admin_headers(client)
+    review_queue = await client.get("/api/claims/review-queue", headers=admin_auth_headers)
     review_queue.raise_for_status()
     queue_data = review_queue.json()
     print(f"   Review queue size: {queue_data['total_pending']}")
@@ -245,6 +259,7 @@ async def scenario_edge_case(client: httpx.AsyncClient) -> dict:
                 "reason": "Manual review confirms the disruption was legitimate.",
                 "reviewed_by": "scenario_runner",
             },
+            headers=admin_auth_headers,
         )
         resolve.raise_for_status()
         resolution = resolve.json()

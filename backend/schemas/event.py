@@ -49,6 +49,10 @@ class TriggerCheckRequest(BaseModel):
         ),
     )
     city: str = Field(default="delhi")
+    demo_run_id: Optional[str] = Field(
+        default=None,
+        description="Simulation-only run identifier to force a fresh demo incident.",
+    )
 
 
 class TriggerCheckResponse(BaseModel):

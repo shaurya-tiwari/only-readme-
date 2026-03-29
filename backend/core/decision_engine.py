@@ -30,15 +30,35 @@ class DecisionEngine:
             3,
         )
 
-        if final_score >= self.THRESHOLDS["approved"]:
+        auto_approve = (
+            adjusted_fraud <= 0.18
+            and trust_score >= 0.55
+            and event_confidence >= 0.8
+            and disruption_score >= 0.68
+        )
+        auto_reject = (
+            adjusted_fraud >= 0.55
+            and len(fraud_flags) >= 3
+            and trust_score <= 0.35
+        )
+
+        if auto_approve or final_score >= self.THRESHOLDS["approved"]:
             decision = "approved"
-            explanation = f"Claim approved with high confidence (score: {final_score})."
-        elif final_score >= self.THRESHOLDS["delayed"]:
+            explanation = (
+                f"Claim approved with high confidence (score: {final_score})."
+                if not auto_approve
+                else f"Claim auto-approved by strong signal alignment (score: {final_score})."
+            )
+        elif auto_reject or final_score < self.THRESHOLDS["delayed"]:
+            decision = "rejected"
+            explanation = (
+                f"Claim rejected (score: {final_score})."
+                if not auto_reject
+                else f"Claim rejected by high fraud pressure and low trust (score: {final_score})."
+            )
+        else:
             decision = "delayed"
             explanation = f"Claim delayed for manual review (score: {final_score})."
-        else:
-            decision = "rejected"
-            explanation = f"Claim rejected (score: {final_score})."
 
         return {
             "final_score": final_score,
@@ -59,6 +79,8 @@ class DecisionEngine:
                 "raw_fraud_score": fraud_result["raw_fraud_score"],
                 "trust_score": trust_score,
                 "fraud_flags": fraud_flags,
+                "auto_approve": auto_approve,
+                "auto_reject": auto_reject,
             },
             "review_deadline": utc_now_naive() + timedelta(hours=24) if decision == "delayed" else None,
         }
