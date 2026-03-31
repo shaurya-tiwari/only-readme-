@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: rideshield_db
+    environment:
+      POSTGRES_USER: rideshield
+      POSTGRES_PASSWORD: rideshield123
+      POSTGRES_DB: rideshield_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rideshield -d rideshield_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: rideshield_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@rideshield.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: rideshield_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://rideshield:rideshield123@db:5432/rideshield_db
+      DATABASE_URL_SYNC: postgresql://rideshield:rideshield123@db:5432/rideshield_db
+      SIMULATION_MODE: "true"
+      DEBUG: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./simulations:/app/simulations
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
