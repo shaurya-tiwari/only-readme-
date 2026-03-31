@@ -22,13 +22,11 @@ from backend.api.triggers import router as triggers_router
 from backend.api.workers import router as workers_router
 from backend.config import settings
 from backend.core.location_service import location_service
+from backend.core.runtime_logging import configure_logging
 from backend.core.trigger_scheduler import trigger_scheduler
 from backend.database import async_session_factory, close_db, init_db
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+configure_logging()
 logger = logging.getLogger("rideshield")
 
 

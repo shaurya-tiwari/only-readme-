@@ -78,6 +78,13 @@ Use this checklist to review the current Sprint 1, Sprint 2, and Sprint 3 produc
   - [ ] forecast panel
   - [ ] scheduler state
 
+- [ ] Open `/intelligence`
+- [ ] Confirm the intelligence page shows:
+  - [ ] scheduler posture
+  - [ ] monitored cities
+  - [ ] system indicators
+  - [ ] forecast bands
+
 ## 6. Demo Runner Review
 
 - [ ] While signed in as admin, open `/demo`
@@ -123,6 +130,13 @@ Use this checklist to review the current Sprint 1, Sprint 2, and Sprint 3 produc
   - [ ] run count
   - [ ] last started time
   - [ ] last finished time
+
+- [ ] Optional: open `logs/runtime/trigger_cycles.txt`
+- [ ] Confirm cycle logs show:
+  - [ ] scheduler run start
+  - [ ] scheduler run done
+  - [ ] zone signals
+  - [ ] zone outcome summaries
 
 ## 10. API Spot Checks
 

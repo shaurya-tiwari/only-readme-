@@ -60,6 +60,11 @@ class TriggerScheduler:
             self.state["running"] = True
             self.state["last_started_at"] = utc_now_iso()
             self.state["last_error"] = None
+            logger.info(
+                "scheduler_run_start interval_seconds=%s run_count=%s",
+                settings.TRIGGER_CHECK_INTERVAL_SECONDS,
+                self.state["run_count"] + 1,
+            )
             try:
                 async with async_session_factory() as db:
                     results = {}
@@ -93,6 +98,24 @@ class TriggerScheduler:
                         }
                     self.state["run_count"] += 1
                     self.state["last_result"] = results
+                    total_events_created = sum(item["events_created"] for item in results.values())
+                    total_events_extended = sum(item["events_extended"] for item in results.values())
+                    total_claims_generated = sum(item["claims_generated"] for item in results.values())
+                    total_claims_approved = sum(item["claims_approved"] for item in results.values())
+                    total_claims_delayed = sum(item["claims_delayed"] for item in results.values())
+                    total_claims_rejected = sum(item["claims_rejected"] for item in results.values())
+                    total_payout = round(sum(item["total_payout"] for item in results.values()), 2)
+                    logger.info(
+                        "scheduler_run_done cities=%s events_created=%s events_extended=%s claims_generated=%s claims_approved=%s claims_delayed=%s claims_rejected=%s total_payout=%s",
+                        len(results),
+                        total_events_created,
+                        total_events_extended,
+                        total_claims_generated,
+                        total_claims_approved,
+                        total_claims_delayed,
+                        total_claims_rejected,
+                        total_payout,
+                    )
                     return results
             except Exception as exc:
                 self.state["last_error"] = str(exc)

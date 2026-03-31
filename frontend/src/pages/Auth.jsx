@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
@@ -11,10 +11,14 @@ export default function Auth() {
   const [tab, setTab] = useState("worker");
   const [loading, setLoading] = useState(false);
   const [workerPhone, setWorkerPhone] = useState("");
-  const [adminUsername, setAdminUsername] = useState("admin");
-  const [adminPassword, setAdminPassword] = useState("rideshield-admin");
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
 
   const redirectTarget = location.state?.from?.pathname;
+
+  useEffect(() => {
+    document.title = "Sign In | RideShield";
+  }, []);
 
   async function handleWorkerLogin(event) {
     event.preventDefault();
@@ -44,7 +48,7 @@ export default function Auth() {
         <SectionHeader
           eyebrow="Access"
           title="Sign in to RideShield"
-          description="Worker sign-in and admin sign-in now run as separate Sprint 3 flows."
+          description="Worker and admin sessions are separate so protection flows and operations controls stay clean."
         />
 
         <div className="mb-6 flex gap-2 rounded-2xl bg-black/[0.04] p-1">
@@ -73,26 +77,29 @@ export default function Auth() {
           <form className="space-y-5" onSubmit={handleAdminLogin}>
             <div>
               <label className="label">Admin username</label>
-              <input className="field" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} required />
+              <input className="field" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} placeholder="Enter admin username" required />
             </div>
             <div>
               <label className="label">Admin password</label>
-              <input className="field" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
+              <input className="field" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Enter admin password" required />
             </div>
             <button type="submit" className="button-primary w-full" disabled={loading}>
               {loading ? "Signing in..." : "Continue as admin"}
             </button>
+            <p className="text-sm text-ink/60">
+              Local demo access uses the configured admin credentials from the project environment.
+            </p>
           </form>
         )}
       </div>
 
       <div className="panel p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink/45">Sprint 3 fixes</p>
-        <h2 className="mt-2 text-3xl font-bold">What changes here</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant">Why RideShield</p>
+        <h2 className="mt-2 text-3xl font-bold text-primary">Income protection that feels automatic, not bureaucratic.</h2>
         <div className="mt-6 space-y-4 text-sm text-ink/65">
-          <p>Worker registration and worker sign-in are no longer the same thing.</p>
-          <p>Admin access now has a separate session role and route boundary.</p>
-          <p>Session restore runs against the backend instead of relying only on a route parameter.</p>
+          <p>Workers do not file claims manually. RideShield monitors zone-level disruptions, matches active policies, and pays automatically when confidence is high.</p>
+          <p>Admins see the pressure points behind the engine: delayed reviews, duplicate prevention, payout movement, and scheduler status.</p>
+          <p>The product is built to explain outcomes clearly so approved, delayed, and rejected claims never feel arbitrary.</p>
         </div>
       </div>
     </div>

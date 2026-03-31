@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -9,44 +9,90 @@
     color-scheme: light;
   }
 
+  html {
+    @apply bg-surface;
+  }
+
   body {
-    @apply bg-mesh-paper font-['Instrument_Sans'] text-ink antialiased;
+    @apply bg-surface bg-[radial-gradient(circle_at_top_left,_rgba(13,77,77,0.07),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(244,161,53,0.08),_transparent_22%),linear-gradient(180deg,_#f9f9f6_0%,_#f4f4f1_100%)] font-body text-on-surface antialiased;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    @apply font-['Space_Grotesk'];
+    @apply font-headline;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-on-surface;
   }
 }
 
 @layer components {
   .panel {
-    @apply rounded-3xl border border-black/5 bg-white/85 shadow-panel backdrop-blur;
+    @apply rounded-[28px] bg-surface-container-lowest shadow-[0_20px_60px_rgba(26,28,25,0.08)] backdrop-blur;
   }
 
   .panel-muted {
-    @apply rounded-3xl border border-black/5 bg-white/65 shadow-panel backdrop-blur;
+    @apply rounded-[28px] bg-surface-container-low shadow-[0_20px_60px_rgba(26,28,25,0.05)] backdrop-blur;
+  }
+
+  .panel-quiet {
+    @apply rounded-[28px] bg-surface-container-low shadow-[inset_0_1px_0_rgba(255,255,255,0.4)];
+  }
+
+  .glass-strip {
+    @apply bg-surface-container-lowest/90 backdrop-blur-xl;
+  }
+
+  .hero-glow {
+    @apply bg-[radial-gradient(circle_at_top_right,_rgba(133,189,188,0.18),_transparent_32%),linear-gradient(135deg,#003535_0%,#0d4d4d_100%)] text-on-primary shadow-[0_28px_80px_rgba(0,53,53,0.28)];
   }
 
   .button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-ink px-5 py-3 font-semibold text-white transition hover:bg-storm;
+    @apply inline-flex items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#003535_0%,#0d4d4d_100%)] px-5 py-3 font-semibold text-on-primary transition duration-300 hover:brightness-110;
   }
 
   .button-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-5 py-3 font-semibold text-ink transition hover:border-black/20 hover:bg-black/[0.03];
+    @apply inline-flex items-center justify-center gap-2 rounded-[20px] bg-surface-container-lowest px-5 py-3 font-semibold text-on-surface transition duration-300 hover:bg-surface;
   }
 
   .field {
-    @apply w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-storm focus:ring-2 focus:ring-storm/20;
+    @apply w-full rounded-[20px] border border-outline-variant/60 bg-surface-container-lowest px-4 py-3 outline-none transition duration-300 focus:ring-2 focus:ring-primary/20;
   }
 
   .label {
-    @apply mb-2 block text-sm font-medium text-ink/70;
+    @apply mb-2 block text-sm font-medium text-on-surface-variant;
   }
 
   .pill {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-on-surface-variant/80;
+  }
+
+  .metric-card {
+    @apply panel relative overflow-hidden p-5;
+  }
+
+  .editorial-grid {
+    @apply grid gap-6;
+  }
+
+  .hero-mesh {
+    @apply relative overflow-hidden;
+  }
+
+  .hero-mesh::after {
+    content: "";
+    @apply pointer-events-none absolute inset-0 opacity-30;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(circle at top right, black, transparent 72%);
   }
 }

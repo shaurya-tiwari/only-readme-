@@ -2,6 +2,7 @@
 Claim processor orchestrating the zero-touch Sprint 2 pipeline.
 """
 
+import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
@@ -21,6 +22,8 @@ from simulations.aqi_mock import aqi_simulator
 from simulations.platform_mock import platform_simulator
 from simulations.traffic_mock import traffic_simulator
 from simulations.weather_mock import weather_simulator
+
+logger = logging.getLogger("rideshield.cycles")
 
 
 def utc_now_naive() -> datetime:
@@ -60,6 +63,14 @@ class ClaimProcessor:
             "details": [],
         }
 
+        logger.info(
+            "cycle_start city=%s scenario=%s demo_run_id=%s zones=%s",
+            city,
+            scenario or "live",
+            demo_run_id or "none",
+            ",".join(zones),
+        )
+
         for zone in zones:
             zone_result = await self._process_zone(db, zone, city, demo_run_id=demo_run_id)
             results["details"].append(zone_result)
@@ -72,6 +83,19 @@ class ClaimProcessor:
             results["claims_rejected"] += zone_result["claims_rejected"]
             results["claims_duplicate"] += zone_result["claims_duplicate"]
             results["total_payout"] += zone_result["total_payout"]
+
+        logger.info(
+            "cycle_done city=%s events_created=%s events_extended=%s claims_generated=%s claims_approved=%s claims_delayed=%s claims_rejected=%s claims_duplicate=%s total_payout=%s",
+            city,
+            results["events_created"],
+            results["events_extended"],
+            results["claims_generated"],
+            results["claims_approved"],
+            results["claims_delayed"],
+            results["claims_rejected"],
+            results["claims_duplicate"],
+            round(results["total_payout"], 2),
+        )
 
         if scenario:
             self._set_scenario("normal")
@@ -101,7 +125,20 @@ class ClaimProcessor:
         thresholds = trigger_engine.thresholds_for_zone(zone_record)
         fired = trigger_engine.evaluate_thresholds(signals, thresholds=thresholds)
         zone_result["triggers_fired"] = fired
+        logger.info(
+            "zone_signals city=%s zone=%s rain=%s heat=%s aqi=%s traffic=%s platform_outage=%s social=%s fired=%s",
+            city,
+            zone,
+            zone_result["signals"].get("rain", 0),
+            zone_result["signals"].get("heat", 0),
+            zone_result["signals"].get("aqi", 0),
+            zone_result["signals"].get("traffic", 0),
+            zone_result["signals"].get("platform_outage", 0),
+            zone_result["signals"].get("social", 0),
+            ",".join(fired) if fired else "none",
+        )
         if not fired:
+            logger.info("zone_no_trigger city=%s zone=%s", city, zone)
             return zone_result
 
         disruption_score = trigger_engine.calculate_disruption_score(signals, thresholds=thresholds)
@@ -138,6 +175,21 @@ class ClaimProcessor:
                     zone_result["claims_rejected"] += 1
                 elif claim_result["status"] == "duplicate":
                     zone_result["claims_duplicate"] += 1
+
+        logger.info(
+            "zone_outcome city=%s zone=%s events_created=%s events_extended=%s covered_workers=%s claims_processed=%s claims_approved=%s claims_delayed=%s claims_rejected=%s claims_duplicate=%s total_payout=%s",
+            city,
+            zone,
+            zone_result["events_created"],
+            zone_result["events_extended"],
+            len(affected_workers),
+            zone_result["claims_processed"],
+            zone_result["claims_approved"],
+            zone_result["claims_delayed"],
+            zone_result["claims_rejected"],
+            zone_result["claims_duplicate"],
+            round(zone_result["total_payout"], 2),
+        )
 
         return zone_result
 

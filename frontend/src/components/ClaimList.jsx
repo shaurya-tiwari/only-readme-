@@ -19,54 +19,47 @@ export default function ClaimList({ claims = [], onSelect, compact = false }) {
   const incidents = groupClaimsByIncident(claims, { bucketMinutes: 90 });
 
   return (
-    <div className="space-y-3">
-      {incidents.map((incident) => (
-        <button
-          key={incident.id}
-          type="button"
-          onClick={() => onSelect?.(incident.claims[0])}
-          className="panel w-full p-4 text-left transition hover:border-ink/15"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="overflow-hidden rounded-[24px] border border-outline-variant/60">
+      <div className="hidden grid-cols-[1.4fr_1fr_1fr_0.9fr_0.9fr_0.8fr] gap-3 bg-surface-container-low px-4 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant md:grid">
+        <span>Incident</span>
+        <span>Zone</span>
+        <span>Triggers</span>
+        <span>Status</span>
+        <span>Amount</span>
+        <span>Score</span>
+      </div>
+      <div className="divide-y divide-outline-variant/40">
+        {incidents.map((incident) => (
+          <button
+            key={incident.id}
+            type="button"
+            onClick={() => onSelect?.(incident.claims[0])}
+            className="grid w-full gap-3 bg-surface-container-lowest px-4 py-4 text-left transition hover:bg-surface md:grid-cols-[1.4fr_1fr_1fr_0.9fr_0.9fr_0.8fr]"
+          >
             <div>
-              <div className="flex items-center gap-3">
-                <span className={statusPill(incident.status)}>{humanizeSlug(incident.status)}</span>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">
-                  {incident.trigger_types.map(humanizeSlug).join(", ")}
-                </p>
-              </div>
-              <p className="mt-3 text-base font-semibold">
+              <p className="text-base font-semibold text-primary">
                 {compact
                   ? incident.worker_name || incident.worker_id
                   : incident.claim_count > 1
                     ? `${incident.claim_count} linked claims`
                     : `Claim ${incident.claims[0].id.slice(0, 8)}`}
               </p>
-              <p className="mt-1 text-sm text-ink/60">
+              <p className="mt-1 text-sm text-on-surface-variant">
                 {formatDateTime(incident.created_at)}
                 {incident.claim_count > 1 ? " · grouped into one disruption incident" : ""}
               </p>
-              <p className="mt-2 text-sm text-ink/55">{reasoningLine(incident.status)}</p>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant md:hidden">{reasoningLine(incident.status)}</p>
             </div>
-            <div className="grid gap-3 text-sm sm:grid-cols-3">
-              <div>
-                <p className="text-ink/45">Payout</p>
-                <p className="font-semibold">
-                  {formatCurrency(incident.total_final_payout || incident.total_calculated_payout)}
-                </p>
-              </div>
-              <div>
-                <p className="text-ink/45">Final score</p>
-                <p className="font-semibold">{formatScore(incident.avg_final_score)}</p>
-              </div>
-              <div>
-                <p className="text-ink/45">Fraud score</p>
-                <p className="font-semibold">{formatScore(incident.max_fraud_score)}</p>
-              </div>
+            <div className="text-sm text-on-surface-variant">{humanizeSlug(incident.zone || "zone")}</div>
+            <div className="text-sm text-on-surface-variant">{incident.trigger_types.map(humanizeSlug).join(", ")}</div>
+            <div><span className={statusPill(incident.status)}>{humanizeSlug(incident.status)}</span></div>
+            <div className="text-sm font-semibold text-primary">
+              {formatCurrency(incident.total_final_payout || incident.total_calculated_payout)}
             </div>
-          </div>
-        </button>
-      ))}
+            <div className="text-sm font-semibold text-primary">{formatScore(incident.avg_final_score)}</div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

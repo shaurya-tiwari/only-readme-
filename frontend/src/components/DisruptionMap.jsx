@@ -64,8 +64,10 @@ export default function DisruptionMap({ events = [], city = "delhi" }) {
         </h3>
       </div>
       <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
-        <div className="relative min-h-72 rounded-[2rem] bg-[radial-gradient(circle_at_top,_rgba(39,77,117,0.16),_transparent_48%),linear-gradient(180deg,rgba(248,244,236,1),rgba(240,235,224,1))] p-4">
+        <div className="relative min-h-72 overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,rgba(235,236,231,1),rgba(214,218,214,1))] p-4">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)", backgroundSize: "36px 36px" }} />
           <div className="absolute inset-6 rounded-[1.75rem] border border-black/8" />
+          <div className="absolute inset-[18%] rounded-[1.75rem] bg-[radial-gradient(circle_at_25%_30%,rgba(255,255,255,0.8),transparent_18%),radial-gradient(circle_at_70%_62%,rgba(255,255,255,0.55),transparent_16%),linear-gradient(135deg,rgba(68,72,72,0.10),rgba(68,72,72,0.03))]" />
           {zoneSummary.length ? (
             zoneSummary.map((zone) => {
               const coord = ZONE_COORDS[zone.zone] || { top: "50%", left: "50%" };
@@ -75,7 +77,7 @@ export default function DisruptionMap({ events = [], city = "delhi" }) {
                   className="absolute -translate-x-1/2 -translate-y-1/2 text-center"
                   style={{ top: coord.top, left: coord.left }}
                 >
-                  <div className={`mx-auto h-4 w-4 rounded-full ring-4 ring-white/70 ${intensityClass(zone.severity)}`} />
+                  <div className={`mx-auto h-4 w-4 rounded-full ring-4 ring-white/70 shadow-[0_0_0_10px_rgba(255,255,255,0.12)] ${intensityClass(zone.severity)}`} />
                   <p className="mt-2 text-xs font-semibold">{humanizeSlug(zone.zone)}</p>
                   <p className="text-[11px] text-ink/55">{zone.count} incidents</p>
                 </div>

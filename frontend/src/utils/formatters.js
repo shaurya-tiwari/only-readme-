@@ -12,7 +12,11 @@ export function formatPercent(value, digits = 1) {
   if (value === null || value === undefined) {
     return "0%";
   }
-  return `${Number(value).toFixed(digits)}%`;
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return "--";
+  }
+  return `${numeric.toFixed(digits)}%`;
 }
 
 export function formatScore(value) {
@@ -26,18 +30,26 @@ export function formatRelative(value) {
   if (!value) {
     return "--";
   }
-  return formatDistanceToNow(new Date(value), { addSuffix: true });
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+  return formatDistanceToNow(date, { addSuffix: true });
 }
 
 export function formatDateTime(value) {
   if (!value) {
     return "--";
   }
-  return format(new Date(value), "dd MMM yyyy, h:mm a");
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+  return format(date, "dd MMM yyyy, h:mm a");
 }
 
 export function humanizeSlug(value = "") {
-  return value
+  return String(value ?? "")
     .split("_")
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))

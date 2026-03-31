@@ -49,6 +49,8 @@ These are the actual product core:
 - worker and onboarding flow
 - admin operations
 - demo runner
+- how-it-works explainer
+- intelligence overview
 
 ## Local Setup
 
@@ -105,6 +107,10 @@ Seeded demo workers:
   - username: `admin`
   - password: `rideshield-admin`
 
+Note:
+- the auth page no longer autofills admin credentials
+- it now treats those demo credentials as local access information rather than silently filling the form
+
 ## Worker Workflow
 
 ### A. New worker path
@@ -143,6 +149,7 @@ Seeded demo workers:
    - next-week forecast
    - scheduler status
 4. Resolve delayed claims from the review queue
+5. Open `/intelligence` when you want the system-level explanation surface instead of the operations queue
 
 ## Demo Runner Workflow
 
@@ -157,6 +164,32 @@ Seeded demo workers:
    - how many were approved, delayed, or rejected
 6. Open worker dashboard or admin panel to inspect downstream results
 7. Reset simulators when done
+
+## Product Explanation Pages
+
+### How It Works
+
+Route:
+- `/how-it-works`
+
+Use it to explain:
+- weekly policy logic
+- trigger-aware coverage
+- waiting period behavior
+- worker flow from signup to payout
+- how the backend layers fit together
+
+### Intelligence Overview
+
+Route:
+- `/intelligence`
+
+Use it to explain:
+- scheduler posture
+- monitored geography
+- trigger layers
+- trust, fraud, and decision relationships
+- current system indicators and forecast bands
 
 ## How Triggering Works Right Now
 
@@ -205,6 +238,22 @@ Current practical consequence:
 - seed data can be rerun safely
 - scheduler state is visible in health/admin surfaces
 - location data is API-driven in the main user/admin flows
+- public-facing explanation pages now exist for policy and intelligence framing
+
+## Runtime Logs
+
+Useful local log files after starting the backend:
+- `logs/runtime/app_runtime.txt`
+- `logs/runtime/trigger_cycles.txt`
+
+Use `trigger_cycles.txt` when you want to review:
+- each scheduler run
+- zone-level signal values
+- triggers fired
+- incident created vs extended
+- claim counts
+- duplicate counts
+- payout totals
 
 ## Useful Docs
 

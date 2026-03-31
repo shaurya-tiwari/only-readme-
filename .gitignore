@@ -36,6 +36,8 @@ build/
 dist/
 node_modules/
 frontend/dist/
+stitch/
+logs/runtime/*.txt
 *.egg-info/
 .eggs/
 

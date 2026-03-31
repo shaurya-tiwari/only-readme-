@@ -704,3 +704,66 @@ Important guardrails that were intentionally added:
 Verification after geography refactor:
 - backend tests: `35 passed`
 - frontend build: successful
+
+### Current Frontend Surface Update
+
+The repo now includes a more substantial frontend structure pass beyond the earlier Sprint 3 scaffold.
+
+Implemented:
+- protected application shell
+  - `frontend/src/components/AppFrame.jsx`
+  - fixed sidebar
+  - top utility bar
+  - mobile bottom navigation for authenticated routes
+- public explanation pages
+  - `frontend/src/pages/HowItWorks.jsx`
+  - `frontend/src/pages/IntelligenceOverview.jsx`
+- app-level rendering guard
+  - `frontend/src/components/ErrorBoundary.jsx`
+- refreshed token system and typography
+  - `frontend/tailwind.config.js`
+  - `frontend/src/index.css`
+- worker dashboard improvements
+  - trust score gauge
+  - denser incident-aligned claims presentation
+  - stronger nearby alert severity treatment
+- admin dashboard improvements
+  - integrity log
+  - city and zone filters
+  - stronger scheduler and health framing
+- demo runner improvements
+  - sequential activity log timestamps
+  - stronger cause-and-effect framing
+
+Current frontend correctness fixes after that pass:
+- worker dashboard hook-order crash fixed in `frontend/src/pages/Dashboard.jsx`
+- `/intelligence` shell title fixed in `frontend/src/components/AppFrame.jsx`
+- shared formatters hardened in `frontend/src/utils/formatters.js`
+
+Current frontend backlog still acknowledged:
+- search is stateful but not wired to real filtering yet
+- document-title coverage is partial, not complete
+- disruption map is still a stylized static surface, not a full geographic map
+- mobile spacing still deserves a focused polish pass
+
+### Runtime Logging Update
+
+The backend now writes local plain-text runtime logs to:
+- `logs/runtime/app_runtime.txt`
+- `logs/runtime/trigger_cycles.txt`
+
+Purpose:
+- review scheduler behavior over time
+- inspect zone-level signals and triggers
+- review incident create/extend behavior
+- review claim generation, duplicates, and payout totals
+
+Implementation files:
+- `backend/core/runtime_logging.py`
+- `backend/main.py`
+- `backend/core/trigger_scheduler.py`
+- `backend/core/claim_processor.py`
+
+Working rule:
+- runtime logs are local diagnostics
+- they are intentionally ignored by git
