@@ -30,24 +30,28 @@ Use this outline for the current repo state, not the older sprint markdown claim
 
 - worker onboarding and weekly policy purchase
 - trigger engine and scheduler
-- incident creation / extension
-- rule-based fraud detection today
+- incident creation and extension
+- hybrid fraud scoring with ML fallback
 - decision engine and payout executor
 - DB-backed geography and audit trail
+- admin and worker explainability surfaces
 
 ## 5. Current ML Story
 
 - risk model:
   - integrated with fallback
-  - used for risk surfaces and premium metadata
+  - used for worker risk and premium metadata
 - forecast engine:
   - integrated into analytics
   - exposed in admin and intelligence surfaces
 - fraud ML:
-  - planned next
-  - not currently integrated into runtime claim decisions
+  - integrated into runtime fraud scoring
+  - blended with rule signals
+  - surfaced in claim detail and admin review
 
-Keep this section honest. Do not present fraud ML as finished.
+Keep this section honest:
+- model fallback is still part of the runtime design
+- fraud calibration is still demo-grade rather than production-calibrated
 
 ## 6. Worker Surface Story
 
@@ -62,10 +66,11 @@ Keep this section honest. Do not present fraud ML as finished.
 - review queue
 - next decision
 - KPI overview
+- live scheduler health
 - disruption feed
 - forecast horizon
 - model status
-- scheduler visibility
+- policy utility controls
 
 ## 8. Demo Story
 
@@ -89,17 +94,20 @@ Keep this section honest. Do not present fraud ML as finished.
 - decision pipeline
 - scheduler
 - claims and payouts
-- admin/worker surfaces
+- admin and worker surfaces
 - risk-model service
+- fraud-model-assisted scoring
 - forecast engine
+- cookie-based session model
 
 ### Simulated now
-- weather / AQI / traffic / platform source feeds
+- weather, AQI, traffic, and platform source feeds
 - payout rail as sandbox/demo behavior
+- telemetry realism and fraud-data realism
 
 ## 11. Next Technical Step
 
-- ML fraud feature pipeline
-- fraud model service
-- blended rule + ML claim fraud score
-- explainable fraud review UI
+- improve fraud and risk calibration realism
+- tighten secrets and operational hygiene
+- expand frontend coverage on admin and demo surfaces
+- improve structured runtime logging

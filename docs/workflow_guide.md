@@ -1,17 +1,16 @@
 # RideShield Workflow Guide
 
 This guide is the practical runbook for the current repo.
-
-It does not restate the final product narrative from `README.md`. It focuses on:
+It focuses on:
 - how to run the stack
 - what each role can do
 - what is real today
-- what is still simulated or deferred
+- what is still simulated or simplified
 
 ## Operating Loop
 
 ```text
-Observe signals -> detect incident -> verify policy -> score decision -> pay or review
+Observe signals -> detect incident -> verify policy -> score claim -> pay or review
 ```
 
 Important product rule:
@@ -20,13 +19,13 @@ Important product rule:
 
 ## Current System Shape
 
-### Simulated Inputs
+### Simulated inputs
 - `simulations/weather_mock.py`
 - `simulations/aqi_mock.py`
 - `simulations/traffic_mock.py`
 - `simulations/platform_mock.py`
 
-### Real Core Engine
+### Real core engine
 - `backend/core/trigger_engine.py`
 - `backend/core/claim_processor.py`
 - `backend/core/fraud_detector.py`
@@ -34,7 +33,7 @@ Important product rule:
 - `backend/core/income_verifier.py`
 - `backend/core/payout_executor.py`
 
-### ML / Forecast Layer
+### ML and forecast layer
 - `backend/core/risk_model_service.py`
 - `backend/core/fraud_model_service.py`
 - `backend/core/forecast_engine.py`
@@ -44,7 +43,7 @@ Important product rule:
 - `backend/ml/features/fraud_features.py`
 - `backend/ml/explainability.py`
 
-### Frontend Surfaces
+### Frontend surfaces
 - worker onboarding
 - worker dashboard
 - admin oversight
@@ -61,13 +60,17 @@ Important product rule:
 - payout execution
 - DB-backed geography
 - risk-model-backed risk surface with fallback
+- detailed premium metadata from the plans API
 - hybrid fraud scoring with ML + rule fallback
 - forecast analytics and model-status endpoints
+- cookie-based auth with bearer fallback for Swagger/tests
 
 ### Still simulated or simplified
 - external disruption feeds
+- payout rails
 - synthetic fraud-model training data
 - device or GPS telemetry realism
+- plain-text runtime logs
 
 ## Local Setup
 
@@ -97,22 +100,28 @@ This starts:
 
 ### Worker
 - sign in at `/auth`
-- phone + password based session
-- sees onboarding, dashboard, payouts, claims, risk
+- phone + password session
+- httpOnly cookie is the primary frontend auth path
+- sees onboarding, dashboard, payouts, claims, and risk context
 
 ### Admin
 - sign in at `/auth`
 - separate admin session
-- sees admin oversight, intelligence page, demo runner, review queue
+- sees admin oversight, intelligence page, demo runner, and review queue
+
+### API note
+- protected APIs accept either the session cookie or `Authorization: Bearer <token>`
+- the frontend stores only role metadata locally for session boot UX
 
 ## Worker Workflow
 
 ### New worker
 1. Open `/onboarding`
-2. Register worker profile
-3. Receive risk score and plan options
-4. Buy weekly plan
-5. Open `/dashboard`
+2. Register worker profile with city, zone, platform, and consent
+3. Receive risk score and recommended plan
+4. Load the detailed plan catalog from `/api/policies/plans/{worker_id}`
+5. Buy weekly plan
+6. Open the worker dashboard explicitly after sign-in
 
 ### Returning worker
 1. Open `/auth`
@@ -132,16 +141,21 @@ This starts:
 2. Open `/admin`
 3. Review:
    - KPI strip
-   - review queue / next decision
+   - health status derived from real scheduler state
+   - review queue and next decision
    - scheduler state
    - model status
-   - fraud probability and top suspicious factors
    - incident feed
    - integrity preview
    - forecast horizon
    - disruption map
-4. Use city/zone filters to narrow the decision surface
+4. Use city and zone filters to narrow the decision surface
 5. Resolve delayed claims when present
+
+Admin utility routes also exist for:
+- pending policy activation
+- force activation in simulation
+- expiring stale policies
 
 ## Demo Runner Workflow
 
@@ -158,7 +172,7 @@ This starts:
 7. Reset simulators when done
 
 Notes:
-- demo worker creation now sends the full worker registration payload, including password
+- demo worker creation sends the full worker registration payload, including password
 - demo failures should surface inline in the page instead of failing silently
 
 ## Intelligence Overview Workflow
@@ -169,10 +183,10 @@ It is for:
 - scheduler posture
 - monitored geography
 - trigger layers
-- fraud/trust/decision relationships
+- fraud, trust, and decision relationships
 - current system indicators
 - forecast bands and KPI interpretation
-- risk and fraud model status / metrics
+- risk and fraud model status and metrics
 
 It is not the same thing as the admin decision queue.
 

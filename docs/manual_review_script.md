@@ -23,40 +23,53 @@ Use this checklist to validate the current repo manually after local startup.
 
 - [ ] Confirm demo workers exist
 
-## 3. Worker Review
+## 3. Worker Auth Review
 
 - [ ] Open `/auth`
-- [ ] Sign in as worker
+- [ ] Try invalid worker credentials
+- [ ] Confirm the page shows an inline toast error instead of silently redirecting
+- [ ] Sign in as a valid worker
+- [ ] Refresh the page
+- [ ] Confirm the session persists
+- [ ] Confirm local storage contains only `rideshield.session_meta` role metadata
+- [ ] Confirm local storage does not contain `rideshield.workerId`
+
+## 4. Worker Dashboard Review
+
 - [ ] Confirm `/dashboard` loads
 - [ ] Confirm the dashboard shows:
   - [ ] active policy
-  - [ ] decision panel / selected claim
+  - [ ] decision panel and selected claim
   - [ ] risk score card
   - [ ] payout history
   - [ ] nearby alerts
-- [ ] Refresh the page
-- [ ] Confirm the session persists
 
-## 4. Onboarding Review
+## 5. Onboarding Review
 
 - [ ] Sign out
 - [ ] Open `/onboarding`
 - [ ] Register a new worker
 - [ ] Confirm the flow shows:
   - [ ] registration fields
+  - [ ] backend-driven city and zone selectors
   - [ ] risk score
   - [ ] available plans
   - [ ] premium explanation
+  - [ ] detailed plan catalog pricing
+- [ ] Change city
+- [ ] Confirm zones refresh without refetching the full city list repeatedly
 - [ ] Purchase a plan
 - [ ] Confirm completion state appears
+- [ ] Confirm onboarding does not persist `rideshield.workerId`
 
-## 5. Admin Review
+## 6. Admin Review
 
 - [ ] Open `/auth`
 - [ ] Sign in as admin
 - [ ] Confirm redirect to `/admin`
 - [ ] Confirm the admin panel shows:
   - [ ] KPI cards
+  - [ ] textual health status, not a fake percentage
   - [ ] review queue
   - [ ] next decision panel
   - [ ] scheduler state
@@ -65,13 +78,12 @@ Use this checklist to validate the current repo manually after local startup.
   - [ ] integrity preview
   - [ ] forecast horizon
   - [ ] disruption map
-
 - [ ] Change city filter
 - [ ] Confirm review and supporting panels react to the filter
 - [ ] Change zone filter
 - [ ] Confirm the same
 
-## 6. Intelligence Review
+## 7. Intelligence Review
 
 - [ ] Open `/intelligence`
 - [ ] Confirm the page shows:
@@ -80,7 +92,6 @@ Use this checklist to validate the current repo manually after local startup.
   - [ ] KPI interpretation text
   - [ ] forecast bands
   - [ ] threshold notes
-
 - [ ] Confirm loss ratio reads as a percentage and includes interpretation
 - [ ] Confirm forecast bands use:
   - [ ] low
@@ -88,7 +99,7 @@ Use this checklist to validate the current repo manually after local startup.
   - [ ] elevated
   - [ ] critical
 
-## 7. Demo Runner Review
+## 8. Demo Runner Review
 
 - [ ] Open `/demo`
 - [ ] Click `Create demo worker`
@@ -101,40 +112,43 @@ Use this checklist to validate the current repo manually after local startup.
 - [ ] Confirm the result card updates again
 - [ ] Click `Reset simulators`
 
-## 8. Review Queue Flow
+## 9. Review Queue Flow
 
 - [ ] Use a scenario that produces delayed claims
 - [ ] Open `/admin`
 - [ ] Confirm the queue shows grouped incident context
 - [ ] Approve a delayed claim
 - [ ] Confirm queue refresh
+- [ ] Confirm payout uses the stored final payout amount
 - [ ] Reject a delayed claim
 - [ ] Confirm queue refresh again
 
-## 9. Analytics API Spot Checks
+## 10. Analytics And Policy Admin Spot Checks
 
 - [ ] In Swagger, verify:
   - [ ] `GET /api/analytics/admin-overview`
   - [ ] `GET /api/analytics/forecast`
   - [ ] `GET /api/analytics/zone-risk`
   - [ ] `GET /api/analytics/models`
-
+  - [ ] `POST /api/policies/expire-old`
+- [ ] Confirm admin-only routes reject unauthenticated calls
 - [ ] Confirm `models` shows:
   - [ ] risk model status
-  - [ ] version
-  - [ ] trained timestamp when available
-  - [ ] metrics
+  - [ ] fraud model status
+  - [ ] version fields
+  - [ ] metrics when available
 
-## 10. Final Acceptance
+## 11. Final Acceptance
 
 Mark manual review as passed only if all are true:
 
 - [ ] worker auth works
 - [ ] admin auth works
 - [ ] onboarding works end to end
+- [ ] session restore works without leaking worker identifiers to local storage
+- [ ] admin health reflects real scheduler state
 - [ ] demo worker creation works
-- [ ] scheduler is visible and understandable
 - [ ] admin filters affect the actual decision surface
-- [ ] intelligence page KPI interpretation is readable and correct
 - [ ] claims and payouts update correctly
+- [ ] admin-only utility routes are guarded
 - [ ] no obvious white-on-light or collapsed-card regressions remain

@@ -7,10 +7,13 @@ This file is the implementation baseline for the current repo, not a copy of the
 - Risk-model scaffolding and runtime risk-model service now exist.
 - Forecast engine and analytics model-status endpoints now exist.
 - Frontend includes model/risk/forecast visibility surfaces.
-- Fraud ML is still not integrated into the claim path.
+- Fraud ML is integrated into hybrid claim-path scoring with runtime fallback.
+- The frontend now uses httpOnly cookie sessions with minimal role-only local metadata.
+- Root audit notes were merged into this file and removed from the repo root:
+  - `CODE_AUDIT_REPORT.md`
+  - `FRONTEND_IMPROVEMENT_PLAN.md`
 - Several local-only scratch files are intentionally ignored:
   - `DEMO_SCRIPT.md`
-  - `FRONTEND_AUDIT_REPORT.md`
   - `test_model.py`
   - `test_phase2_ml_integration.py`
 - ML artifact files under `backend/ml/artifacts/` are local outputs and should not be treated as committed source.
@@ -19,9 +22,9 @@ This file is the implementation baseline for the current repo, not a copy of the
 
 - Sprint 1 foundation is implemented and working.
 - Sprint 2 engine/orchestration scope is implemented and working.
-- Sprint 3 product/frontend scope is implemented for the current non-ML baseline.
-- Current backend test status: `35 passed`.
-- Frontend production build succeeds.
+- Sprint 3 product/frontend scope is implemented and now extended beyond the original non-ML baseline.
+- Current backend test status: `53 passed`.
+- Current frontend test status: `60 passed`.
 - Trigger monitoring now runs on a scheduler and can also be exercised manually through the demo runner and trigger APIs.
 - Geography is no longer only a frontend/config constant problem. The repo now has a DB-backed geography foundation for the currently supported cities.
 
@@ -472,8 +475,8 @@ Current seeded demo workers now cover multiple cities:
 - Rohit Yadav
 
 Verification after geography refactor:
-- backend tests: `35 passed`
-- frontend build: successful
+- backend tests: `53 passed`
+- frontend tests: `60 passed`
 - in-process API smoke pass confirms the current route contracts for:
   - health
   - locations
@@ -488,7 +491,7 @@ Verification after geography refactor:
 
 Important current API contract notes:
 - auth login returns `token`, not `access_token`
-- protected routes require `Authorization: Bearer <token>`
+- protected routes accept the session cookie or `Authorization: Bearer <token>`
 - policy plans route is `/api/policies/plans/{worker_id}`
 - event detail route is `/api/events/detail/{event_id}`
 - claim detail route is `/api/claims/detail/{claim_id}`
@@ -503,7 +506,7 @@ Important current API contract notes:
     - worker activity index
     - duplicate and event-extension audit log
     - scheduler state
-    - next-week rule-based forecast
+    - next-week forecast snapshots from the forecast engine
 - duplicate/extension visibility
   - trigger engine now writes `event_extended` audit logs
   - claim processor now writes `duplicate_detected` audit logs
@@ -715,8 +718,8 @@ Important guardrails that were intentionally added:
 - frontend includes loading-aware location fetches so geography does not briefly appear empty
 
 Verification after geography refactor:
-- backend tests: `35 passed`
-- frontend build: successful
+- backend tests: `53 passed`
+- frontend tests: `60 passed`
 
 ### Current Frontend Surface Update
 
@@ -790,3 +793,48 @@ Confirmed audit fixes now implemented:
 - CORS now uses configured frontend origins instead of wildcard `*`
 - baseline browser security headers are applied in backend middleware
 - admin password and session secret are env-backed instead of relying on source defaults
+- manual delayed-claim approval now uses the stored `final_payout`
+- payout execution no longer rewrites `claim.final_payout`
+- policy activation reads use row locking
+- `POST /api/policies/expire-old` is now admin-guarded
+- frontend session metadata stores role only and clears legacy `workerId`
+- admin health KPI is derived from live scheduler state, not a static percentage
+
+### Audit Archive Update (2026-04-02)
+
+This section absorbs the earlier root audit artifacts:
+- `CODE_AUDIT_REPORT.md`
+- `FRONTEND_IMPROVEMENT_PLAN.md`
+
+They are intentionally folded into `docs/DevNotes.md` so the repo keeps one implementation-facing audit history instead of multiple drifting summary files.
+
+Snapshot after the audit hardening pass:
+- backend tests: `53 passed`
+- frontend tests: `60 passed`
+- auth model: httpOnly cookie primary, bearer fallback for Swagger/tests
+- fraud posture: hybrid rule + ML scoring with runtime fallback
+- frontend session storage: role-only metadata, no persisted worker identifier key
+
+Highest-priority findings that were confirmed and fixed:
+- payout executor no longer overwrites `claim.final_payout`
+- delayed-claim manual approval now pays `final_payout` before falling back to `calculated_payout`
+- active-policy read path now uses row locking before activating pending policies
+- `POST /api/policies/expire-old` now requires an admin session
+- forecast incident pressure now respects 7-day and 30-day windows
+- in-memory auth rate limiter now prunes stale keys instead of growing indefinitely
+- frontend onboarding no longer persists `workerId` in local storage
+- auth session metadata in local storage is reduced to role-only information
+- auth-page `401` handling no longer redirects the user from `/auth` back to `/auth?reason=session_expired`
+- admin health now reflects scheduler state instead of a fake `99.98%` KPI
+
+Audit items that were already resolved by the branch before the merge:
+- login handlers in `Auth.jsx` already had explicit `catch` handling
+- worker dashboard ownership redirect already existed in `ProtectedRoute`
+- public pages were no longer blocked behind a global app-wide boot spinner
+
+Residual backlog that still matters after the audit:
+- move more local secrets and convenience credentials out of committed dev config paths
+- broaden frontend coverage further into admin/demo surfaces such as `DemoRunner` and `IntelligenceOverview`
+- improve fraud and risk calibration realism for non-synthetic operating data
+- move runtime logging toward structured JSON if production observability becomes a priority
+- keep tightening dense admin/dashboard surface hierarchy where needed
