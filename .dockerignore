@@ -47,4 +47,3 @@ frontend/.turbo/
 .DS_Store
 Thumbs.db
 *.log
-simulations/
