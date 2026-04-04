@@ -14,6 +14,8 @@ from backend.config import settings
 from backend.core.fraud_model_service import fraud_model_service
 from backend.core.location_service import location_service
 from backend.core.risk_model_service import risk_model_service
+from backend.core.shadow_diff_writer import shadow_diff_writer
+from backend.core.signal_service import signal_service
 from backend.core.trigger_scheduler import trigger_scheduler
 from backend.database import get_db
 
@@ -56,8 +58,13 @@ async def config_check(db: AsyncSession = Depends(get_db)):
     """Show current configuration (non-sensitive)."""
     cities = await location_service.get_active_cities(db)
     city_map = await location_service.get_city_zone_map(db)
+    shadow_diff_summary = await shadow_diff_writer.daily_summary(db)
     return {
         "simulation_mode": settings.SIMULATION_MODE,
+        "signal_sources": signal_service.source_overview(),
+        "signal_runtime": settings.signal_runtime_config,
+        "provider_snapshot_persistence_enabled": settings.ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE,
+        "shadow_diff_summary": shadow_diff_summary,
         "scheduler": trigger_scheduler.state,
         "activation_delay_hours": settings.ACTIVATION_DELAY_HOURS,
         "policy_duration_days": settings.POLICY_DURATION_DAYS,

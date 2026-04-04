@@ -40,12 +40,12 @@ async def get_trigger_status(city: str = "delhi", zones: Optional[str] = None, d
     snapshots = []
     for zone in zone_list:
         zone = zone.strip()
-        signals = await trigger_engine.fetch_all_signals(zone, city)
+        signals = await trigger_engine.fetch_all_signals(zone, city, db=db)
         fired = trigger_engine.evaluate_thresholds(signals)
         snapshots.append(
             SignalSnapshot(
                 zone=zone,
-                timestamp=signals.get("raw_data", {}).get("weather", {}).get("timestamp", ""),
+                timestamp=signals.get("timestamp") or signals.get("raw_data", {}).get("weather", {}).get("timestamp", ""),
                 rain_mm_hr=signals.get("rain", 0),
                 temperature_c=signals.get("heat", 0),
                 aqi_value=int(signals.get("aqi", 0)),

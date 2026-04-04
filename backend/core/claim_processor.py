@@ -196,7 +196,7 @@ class ClaimProcessor:
         }
 
         zone_record = await location_service.resolve_zone(db, city, zone)
-        signals = await trigger_engine.fetch_all_signals(zone, city)
+        signals = await trigger_engine.fetch_all_signals(zone, city, db=db)
         zone_result["signals"] = {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))}
         thresholds = trigger_engine.thresholds_for_zone(zone_record)
         fired = trigger_engine.evaluate_thresholds(signals, thresholds=thresholds)

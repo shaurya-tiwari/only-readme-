@@ -253,6 +253,63 @@ class AuditLog(Base):
         return f"<AuditLog {self.action} on {self.entity_type}>"
 
 
+class SignalSnapshot(Base):
+    """Normalized signal payload captured from a provider cycle."""
+    __tablename__ = "signal_snapshots"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid)
+    city = Column(String(50), nullable=False, index=True)
+    zone = Column(String(80), nullable=False, index=True)
+    signal_type = Column(String(50), nullable=False, index=True)
+    provider = Column(String(100), nullable=False)
+    source_mode = Column(String(20), nullable=False, default="mock")
+    captured_at = Column(DateTime, nullable=False, index=True)
+    normalized_metrics = Column(JSONB, nullable=False)
+    raw_payload = Column(JSONB, nullable=False)
+    quality_score = Column(Numeric(4, 3), nullable=False)
+    quality_breakdown = Column(JSONB, nullable=True)
+    confidence_envelope = Column(JSONB, nullable=True)
+    latency_ms = Column(Integer, nullable=False, default=0)
+    is_fallback = Column(Boolean, default=False)
+    request_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive)
+
+    __table_args__ = (
+        Index("idx_signal_snapshot_zone_type_time", "zone", "signal_type", "captured_at"),
+        Index("idx_signal_snapshot_city_time", "city", "captured_at"),
+    )
+
+    def __repr__(self):
+        return f"<SignalSnapshot {self.signal_type} {self.zone} {self.captured_at}>"
+
+
+class ShadowSignalDiff(Base):
+    """Structured shadow-mode comparison persisted for review and alerting."""
+    __tablename__ = "shadow_signal_diffs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid)
+    city = Column(String(50), nullable=False, index=True)
+    zone = Column(String(80), nullable=False, index=True)
+    signal_type = Column(String(50), nullable=False, index=True)
+    primary_provider = Column(String(100), nullable=False)
+    shadow_provider = Column(String(100), nullable=False)
+    compared_at = Column(DateTime, nullable=False, index=True)
+    max_delta = Column(Numeric(8, 3), nullable=False)
+    metric_deltas = Column(JSONB, nullable=False)
+    threshold_crossed = Column(Boolean, default=False, nullable=False)
+    alert_triggered = Column(Boolean, default=False, nullable=False)
+    threshold_state = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive)
+
+    __table_args__ = (
+        Index("idx_shadow_diff_zone_type_time", "zone", "signal_type", "compared_at"),
+        Index("idx_shadow_diff_city_time", "city", "compared_at"),
+    )
+
+    def __repr__(self):
+        return f"<ShadowSignalDiff {self.signal_type} {self.zone} {self.compared_at}>"
+
+
 class WorkerActivity(Base):
     """GPS and movement data for behavioral validation."""
     __tablename__ = "worker_activity"

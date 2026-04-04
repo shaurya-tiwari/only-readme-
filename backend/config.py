@@ -40,6 +40,21 @@ class Settings(BaseSettings):
     SIMULATION_MODE: bool = True
     ENABLE_TRIGGER_SCHEDULER: bool = True
     TRIGGER_CHECK_INTERVAL_SECONDS: int = 300
+    SIGNAL_SOURCE_MODE: str = "mock"
+    WEATHER_SOURCE: str = "mock"
+    AQI_SOURCE: str = "mock"
+    TRAFFIC_SOURCE: str = "mock"
+    PLATFORM_SOURCE: str = "mock"
+    ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE: bool = True
+    ENABLE_SHADOW_DIFF_LOGGING: bool = True
+    ENABLE_SHADOW_DIFF_PERSISTENCE: bool = True
+    SIGNAL_SNAPSHOT_RETENTION_DAYS: int = 14
+    SHADOW_DIFF_RETENTION_DAYS: int = 14
+    SIGNAL_RETENTION_CLEANUP_INTERVAL: int = 100
+    SHADOW_DIFF_ALERT_DELTA: float = 0.15
+    FORECAST_SNAPSHOT_LOOKBACK_HOURS: int = 24
+    FORECAST_SNAPSHOT_HISTORY_LIMIT: int = 12
+    FORECAST_SIGNAL_SMOOTHING_WEIGHT: float = 0.7
 
     # External APIs
     OPENWEATHER_API_KEY: Optional[str] = None
@@ -85,6 +100,7 @@ class Settings(BaseSettings):
     def cors_allowed_origins(self) -> list[str]:
         return [item.strip() for item in self.CORS_ALLOWED_ORIGINS.split(",") if item.strip()]
 
+
     @field_validator("SESSION_COOKIE_SAMESITE", mode="before")
     @classmethod
     def validate_cookie_samesite(cls, value: Any) -> str:
@@ -92,6 +108,86 @@ class Settings(BaseSettings):
         if normalized not in {"lax", "strict", "none"}:
             raise ValueError("SESSION_COOKIE_SAMESITE must be one of: lax, strict, none")
         return normalized
+
+
+    @field_validator("SIGNAL_SOURCE_MODE", mode="before")
+    @classmethod
+    def validate_signal_source_mode(cls, value: Any) -> str:
+        normalized = str(value or "mock").strip().lower()
+        allowed = {"mock", "real", "shadow"}
+        if normalized not in allowed:
+            raise ValueError(f"SIGNAL_SOURCE_MODE must be one of {sorted(allowed)}")
+        return normalized
+
+    @field_validator("WEATHER_SOURCE", "AQI_SOURCE", "TRAFFIC_SOURCE", mode="before")
+    @classmethod
+    def validate_standard_signal_source(cls, value: Any) -> str:
+        normalized = str(value or "mock").strip().lower()
+        allowed = {"mock", "real"}
+        if normalized not in allowed:
+            raise ValueError(f"Signal source must be one of {sorted(allowed)}")
+        return normalized
+
+    @field_validator("PLATFORM_SOURCE", mode="before")
+    @classmethod
+    def validate_platform_source(cls, value: Any) -> str:
+        normalized = str(value or "mock").strip().lower()
+        allowed = {"mock", "db", "partner"}
+        if normalized not in allowed:
+            raise ValueError(f"PLATFORM_SOURCE must be one of {sorted(allowed)}")
+        return normalized
+
+    @field_validator(
+        "SIGNAL_SNAPSHOT_RETENTION_DAYS",
+        "SHADOW_DIFF_RETENTION_DAYS",
+        "SIGNAL_RETENTION_CLEANUP_INTERVAL",
+        "FORECAST_SNAPSHOT_LOOKBACK_HOURS",
+        "FORECAST_SNAPSHOT_HISTORY_LIMIT",
+        mode="before",
+    )
+    @classmethod
+    def validate_positive_ints(cls, value: Any) -> int:
+        parsed = int(value or 0)
+        if parsed < 1:
+            raise ValueError("Value must be >= 1")
+        return parsed
+
+    @field_validator("SHADOW_DIFF_ALERT_DELTA", "FORECAST_SIGNAL_SMOOTHING_WEIGHT", mode="before")
+    @classmethod
+    def validate_unit_interval(cls, value: Any) -> float:
+        parsed = float(value or 0)
+        if not 0 <= parsed <= 1:
+            raise ValueError("Value must be between 0 and 1")
+        return parsed
+
+    @property
+    def signal_runtime_config(self) -> dict[str, Any]:
+        return {
+            "mode": self.SIGNAL_SOURCE_MODE,
+            "providers": {
+                "weather": {"source": self.WEATHER_SOURCE},
+                "aqi": {"source": self.AQI_SOURCE},
+                "traffic": {"source": self.TRAFFIC_SOURCE},
+                "platform": {"source": self.PLATFORM_SOURCE},
+            },
+            "shadow_diff": {
+                "logging_enabled": self.ENABLE_SHADOW_DIFF_LOGGING,
+                "persistence_enabled": self.ENABLE_SHADOW_DIFF_PERSISTENCE,
+                "alert_delta": self.SHADOW_DIFF_ALERT_DELTA,
+                "retention_days": self.SHADOW_DIFF_RETENTION_DAYS,
+            },
+            "snapshots": {
+                "persistence_enabled": self.ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE,
+                "retention_days": self.SIGNAL_SNAPSHOT_RETENTION_DAYS,
+                "cleanup_interval": self.SIGNAL_RETENTION_CLEANUP_INTERVAL,
+            },
+            "forecast_preprocessing": {
+                "lookback_hours": self.FORECAST_SNAPSHOT_LOOKBACK_HOURS,
+                "history_limit": self.FORECAST_SNAPSHOT_HISTORY_LIMIT,
+                "smoothing_weight": self.FORECAST_SIGNAL_SMOOTHING_WEIGHT,
+            },
+        }
+
 
     # City Risk Profiles
     CITY_RISK_PROFILES: dict = {
