@@ -1,12 +1,14 @@
 {
   "version": "risk-model-v1",
-  "trained_at": "2026-04-04T04:27:17.428369+00:00",
+  "trained_at": "2026-04-04T06:59:30.281307+00:00",
   "model_type": "GradientBoosting",
   "gpu_enabled": false,
   "metrics": {
-    "mae": 0.0271,
-    "rmse": 0.0337,
-    "r2": 0.7239
+    "mae": 0.0245,
+    "rmse": 0.0309,
+    "r2": 0.7587,
+    "train_mae": 0.0213,
+    "generalization_gap_pct": 0.1548
   },
   "feature_names": [
     "city_base_risk",
@@ -23,7 +25,7 @@
     "worker_density",
     "payout_pressure_30d"
   ],
-  "n_samples": 4320,
+  "n_samples": 28080,
   "train_test_split": "80/20",
   "training_source": "synthetic_data_generator"
 }

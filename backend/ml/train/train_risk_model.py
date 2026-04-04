@@ -35,8 +35,8 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print("🔄 Generating 5000+ training samples...")
-    df = generate_risk_dataset(n_samples=5000)
+    print("🔄 Generating 50000 training samples...")
+    df = generate_risk_dataset(n_samples=50000)
     print(f"✅ Generated {len(df)} samples")
     
     X = df[RISK_FEATURE_NAMES]
@@ -46,9 +46,9 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
     if HAS_XGBOOST:
         print("🚀 Training XGBoost model...")
         model = xgb.XGBRegressor(
-            n_estimators=200,
-            max_depth=6,
-            learning_rate=0.05,
+            n_estimators=300,
+            max_depth=8,
+            learning_rate=0.03,
             subsample=0.8,
             colsample_bytree=0.8,
             objective="reg:squarederror",
@@ -77,10 +77,26 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
         print("✅ GradientBoosting training complete")
     
     predictions = model.predict(X_test)
+    train_predictions = model.predict(X_train)
     
-    mae = mean_absolute_error(y_test, predictions)
-    rmse = mean_squared_error(y_test, predictions, squared=False)
-    r2 = r2_score(y_test, predictions)
+    mae = float(mean_absolute_error(y_test, predictions))
+    rmse = float(mean_squared_error(y_test, predictions, squared=False))
+    r2 = float(r2_score(y_test, predictions))
+    
+    train_mae = float(mean_absolute_error(y_train, train_predictions))
+    
+    gap_pct = abs(mae - train_mae) / max(0.001, train_mae)
+    print("\n--- Risk Model Metrics ---")
+    print(f"Train MAE: {train_mae:.4f}")
+    print(f"Test MAE:  {mae:.4f}")
+    print(f"Test RMSE: {rmse:.4f}")
+    print(f"Test R²:   {r2:.4f}")
+    
+    if gap_pct < 0.05:
+        print(f"✅ Generalization gap < 5% (Actual: {gap_pct:.2%})")
+    else:
+        print(f"⚠️ Warning: Generalization gap is {gap_pct:.2%}")
+    print("--------------------------\n")
 
     metadata = {
         "version": "risk-model-v1",
@@ -88,9 +104,11 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
         "model_type": "XGBoost" if HAS_XGBOOST else "GradientBoosting",
         "gpu_enabled": use_gpu and HAS_XGBOOST,
         "metrics": {
-            "mae": round(float(mae), 4),
-            "rmse": round(float(rmse), 4),
-            "r2": round(float(r2), 4),
+            "mae": round(mae, 4),
+            "rmse": round(rmse, 4),
+            "r2": round(r2, 4),
+            "train_mae": round(train_mae, 4),
+            "generalization_gap_pct": round(gap_pct, 4)
         },
         "feature_names": list(RISK_FEATURE_NAMES),
         "n_samples": int(len(df)),
@@ -98,8 +116,6 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
         "training_source": "synthetic_data_generator",
     }
 
-    print(f"📈 Metrics: MAE={mae:.4f}, RMSE={rmse:.4f}, R²={r2:.4f}")
-    
     joblib.dump(model, out_dir / "risk_model.joblib")
     (out_dir / "risk_model_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     

@@ -8,8 +8,8 @@ from backend.utils.time import utc_now_naive
 
 
 class DecisionEngine:
-    WEIGHTS = {"disruption": 0.35, "confidence": 0.25, "fraud_inverse": 0.25, "trust": 0.15}
-    THRESHOLDS = {"approved": 0.70, "delayed": 0.50}
+    WEIGHTS = {"disruption": 0.35, "confidence": 0.25, "fraud_inverse": 0.30, "trust": 0.10}
+    THRESHOLDS = {"approved": 0.65, "delayed": 0.45}
     LOW_RISK_REVIEW_FLAGS = {"movement", "pre_activity"}
     MODERATE_REVIEW_FLAGS = {"device"}
     STRONG_REVIEW_FLAGS = {"duplicate", "cluster", "timing", "income_inflation"}
@@ -204,15 +204,15 @@ class DecisionEngine:
 
         auto_approve = (
             adjusted_fraud <= 0.18
-            and trust_score >= 0.55
-            and event_confidence >= 0.8
-            and disruption_score >= 0.68
+            and trust_score >= 0.09
+            and event_confidence >= 0.75
+            and disruption_score >= 0.65
         )
         trusted_low_risk_approve = (
             adjusted_fraud <= 0.18
-            and trust_score >= 0.70
-            and event_confidence >= 0.75
-            and final_score >= 0.60
+            and trust_score >= 0.20
+            and event_confidence >= 0.70
+            and final_score >= 0.55
             and set(fraud_flags).issubset(self.LOW_RISK_REVIEW_FLAGS)
         )
         auto_reject = (
@@ -231,19 +231,19 @@ class DecisionEngine:
         low_payout_confident_approve = (
             payout_amount <= 100
             and adjusted_fraud <= 0.30
-            and trust_score >= 0.35
-            and event_confidence >= 0.72
-            and final_score >= 0.58
-            and automation_confidence >= 0.62
+            and trust_score >= 0.09
+            and event_confidence >= 0.70
+            and final_score >= 0.55
+            and automation_confidence >= 0.60
             and flag_profile["strong_count"] == 0
         )
         weak_signal_confident_approve = (
             flag_profile["noise_only"]
             and adjusted_fraud <= 0.24
-            and trust_score >= 0.45
-            and event_confidence >= 0.72
-            and final_score >= 0.58
-            and automation_confidence >= 0.60
+            and trust_score >= 0.09
+            and event_confidence >= 0.70
+            and final_score >= 0.55
+            and automation_confidence >= 0.55
             and payout_amount <= 140
         )
         threshold_score_approve = final_score >= self.THRESHOLDS["approved"] and (

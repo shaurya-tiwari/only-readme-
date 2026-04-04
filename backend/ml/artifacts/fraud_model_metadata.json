@@ -1,12 +1,15 @@
 {
-  "version": "fraud-model-v1",
-  "trained_at": "2026-04-04T04:27:05.153717+00:00",
+  "version": "fraud-model-v2",
+  "trained_at": "2026-04-04T06:58:52.103853+00:00",
   "model_type": "RandomForestClassifier",
   "metrics": {
-    "roc_auc": 0.8928,
-    "average_precision": 0.8054,
-    "precision": 0.7025,
-    "recall": 0.81
+    "roc_auc": 0.8923,
+    "average_precision": 0.8318,
+    "precision": 0.7053,
+    "recall": 0.8435,
+    "train_acc": 0.8152,
+    "test_acc": 0.8049,
+    "generalization_gap": 0.0103
   },
   "feature_names": [
     "duplicate_signal",
@@ -27,25 +30,25 @@
     "event_confidence_norm"
   ],
   "feature_importance": {
-    "duplicate_signal": 0.3718,
-    "trust_score": 0.1812,
-    "timing_signal": 0.1756,
-    "movement_signal": 0.1088,
-    "pre_activity_signal": 0.0678,
-    "event_confidence_norm": 0.0318,
-    "device_signal": 0.0095,
-    "cluster_signal": 0.0095,
-    "income_inflation_signal": 0.0083,
-    "income_ratio": 0.0083,
-    "account_age_norm": 0.0072,
-    "event_severity_norm": 0.0065,
-    "policy_age_hours_norm": 0.0063,
-    "activity_count_norm": 0.0031,
-    "cluster_claims_norm": 0.0023,
-    "recent_claims_norm": 0.0019
+    "duplicate_signal": 0.4566,
+    "timing_signal": 0.1755,
+    "trust_score": 0.1416,
+    "movement_signal": 0.0789,
+    "pre_activity_signal": 0.0626,
+    "event_confidence_norm": 0.0477,
+    "cluster_signal": 0.0059,
+    "income_ratio": 0.0055,
+    "income_inflation_signal": 0.0055,
+    "device_signal": 0.0049,
+    "event_severity_norm": 0.0038,
+    "account_age_norm": 0.0035,
+    "policy_age_hours_norm": 0.0032,
+    "activity_count_norm": 0.0023,
+    "cluster_claims_norm": 0.0014,
+    "recent_claims_norm": 0.0009
   },
-  "n_samples": 5000,
-  "positive_rate": 0.3792,
+  "n_samples": 50000,
+  "positive_rate": 0.3833,
   "train_test_split": "80/20",
   "training_source": "synthetic_scenario_generator"
 }

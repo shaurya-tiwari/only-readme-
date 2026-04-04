@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from backend.ml.features.fraud_features import FRAUD_FEATURE_NAMES, fraud_feature_builder
 
 
-def generate_fraud_dataset(n_samples: int = 5000) -> pd.DataFrame:
+def generate_fraud_dataset(n_samples: int = 50000) -> pd.DataFrame:
     import numpy as np
 
     np.random.seed(42)
@@ -57,6 +57,23 @@ def generate_fraud_dataset(n_samples: int = 5000) -> pd.DataFrame:
         latent_score += float(np.random.normal(0.0, 0.09))
         fraud_probability = 1.0 / (1.0 + np.exp(-((latent_score - 0.33) * 5.2)))
         is_fraud = int(np.random.random() < fraud_probability)
+
+        # Inject controlled noise / edge cases (~6% of data)
+        rand_edge = np.random.random()
+        if rand_edge < 0.03:
+            # 3% chance: Legit user but behaves like fraud (high movement/timing issues, low trust)
+            is_fraud = 0
+            duplicate_signal = float(np.random.uniform(0.6, 0.95))
+            movement_signal = float(np.random.uniform(0.7, 1.0))
+            trust_score = float(np.random.uniform(0.0, 0.25))
+            timing_signal = float(np.random.uniform(0.6, 1.0))
+        elif rand_edge < 0.06:
+            # 3% chance: Fraud user with completely clean profile (sophisticated actor)
+            is_fraud = 1
+            duplicate_signal = float(np.random.uniform(0.0, 0.15))
+            movement_signal = float(np.random.uniform(0.0, 0.2))
+            trust_score = float(np.random.uniform(0.8, 1.0))
+            pre_activity_signal = float(np.random.uniform(0.0, 0.1))
 
         # Add light class-conditioned drift after label sampling so classes overlap but remain learnable.
         if is_fraud:
@@ -110,16 +127,41 @@ def train_fraud_model(output_dir: str = "backend/ml/artifacts") -> dict:
     )
 
     model = RandomForestClassifier(
-        n_estimators=180,
-        max_depth=6,
-        min_samples_leaf=6,
+        n_estimators=200,
+        max_depth=9,
+        min_samples_leaf=15,
         random_state=42,
         class_weight="balanced",
     )
     model.fit(X_train, y_train)
 
-    probabilities = model.predict_proba(X_test)[:, 1]
-    predictions = (probabilities >= 0.5).astype(int)
+    train_probs = model.predict_proba(X_train)[:, 1]
+    train_preds = (train_probs >= 0.5).astype(int)
+    test_probs = model.predict_proba(X_test)[:, 1]
+    test_preds = (test_probs >= 0.5).astype(int)
+
+    train_auc = float(roc_auc_score(y_train, train_probs))
+    test_auc = float(roc_auc_score(y_test, test_probs))
+    train_acc = float((train_preds == y_train).mean())
+    test_acc = float((test_preds == y_test).mean())
+    precision = float(precision_score(y_test, test_preds, zero_division=0))
+    recall = float(recall_score(y_test, test_preds, zero_division=0))
+    avg_prec = float(average_precision_score(y_test, test_probs))
+
+    print(f"\n--- Fraud Model Metrics ({len(df)} samples) ---")
+    print(f"Train Accuracy: {train_acc:.4f}")
+    print(f"Test Accuracy:  {test_acc:.4f}")
+    print(f"Train ROC AUC:  {train_auc:.4f}")
+    print(f"Test ROC AUC:   {test_auc:.4f}")
+    print(f"Precision:      {precision:.4f}")
+    print(f"Recall:         {recall:.4f}")
+
+    gap = train_acc - test_acc
+    if abs(gap) < 0.05:
+        print(f"✅ Generalization gap < 5% (Actual gap: {abs(gap):.2%})")
+    else:
+        print(f"⚠️ Warning: Generalization gap is {abs(gap):.2%}")
+    print("------------------------------------------\n")
 
     importance = {
         name: round(float(value), 4)
@@ -131,14 +173,17 @@ def train_fraud_model(output_dir: str = "backend/ml/artifacts") -> dict:
     }
 
     metadata = {
-        "version": "fraud-model-v1",
+        "version": "fraud-model-v2",
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "model_type": "RandomForestClassifier",
         "metrics": {
-            "roc_auc": round(float(roc_auc_score(y_test, probabilities)), 4),
-            "average_precision": round(float(average_precision_score(y_test, probabilities)), 4),
-            "precision": round(float(precision_score(y_test, predictions, zero_division=0)), 4),
-            "recall": round(float(recall_score(y_test, predictions, zero_division=0)), 4),
+            "roc_auc": round(test_auc, 4),
+            "average_precision": round(avg_prec, 4),
+            "precision": round(precision, 4),
+            "recall": round(recall, 4),
+            "train_acc": round(train_acc, 4),
+            "test_acc": round(test_acc, 4),
+            "generalization_gap": round(abs(gap), 4),
         },
         "feature_names": list(FRAUD_FEATURE_NAMES),
         "feature_importance": importance,
