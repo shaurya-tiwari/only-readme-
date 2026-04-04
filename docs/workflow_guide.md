@@ -7,13 +7,29 @@ It watches disruption signals, creates claims automatically for affected workers
 
 ## 🔑 Quick Access / Demo Credentials
 
-### 🛡️ Admin Dashboard
-Access the system at `http://localhost:3000/auth` (or the deployed URL).
-- **Username**: `admin`
-- **Password**: `admin-integrity-212`
+> **Important Deployment Note**: RideShield operates two parallel environments for the submission. 
+> 1. **Live Deployment (Repo B)**: The stable production build available to judges.
+> 2. **Local Development (This Repo)**: The engineering environment used for advanced ML training, edge cases, and deterministic testing.
 
-### 👷 Worker Dashboard (Sample Credentials)
-Use these credentials to sign in as a worker to view active policies, protection narrative, and payout history.
+---
+
+### 🌐 Live Production Demo (Deployed Repo B)
+If you are evaluating the deployed live website, use these credentials.
+- **Frontend URL**: [https://ride-shield-hazel.vercel.app](https://ride-shield-hazel.vercel.app)
+- **Admin Username**: `admin`
+- **Admin Password**: `admin-integrity-212` *(The deployed repo uses the hardened Phase 2 credentials).*
+
+---
+
+### 💻 Local Development Demo (This Repo)
+If you are running the system locally via `run_all.ps1` to test the deeper ML integration, access it at `http://localhost:3000/auth`.
+
+**🛡️ Local Admin Dashboard**
+- **Username**: `admin`
+- **Password**: `rideshield-local-admin` *(The local dev environment has a separate staging password).*
+
+**👷 Local Worker Dashboard (Sample Credentials)**
+Use these credentials to sign in locally as a worker to view active policies, protection narrative, and payout history.
 
 | Worker Name | Phone Number | Password | Profile Type |
 | :--- | :--- | :--- | :--- |
