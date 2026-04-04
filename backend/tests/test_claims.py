@@ -108,7 +108,7 @@ async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data
     edge_worker_data["name"] = "Edge Review Worker"
     edge_worker_data["phone"] = "+919999999998"
     edge_worker_data["zone"] = "east_delhi"
-    edge_worker_data["self_reported_income"] = 800
+    edge_worker_data["self_reported_income"] = 8000 # High income -> High payout -> Forces review
 
     register_response = await client.post("/api/workers/register", json=edge_worker_data)
     worker_id = register_response.json()["worker_id"]

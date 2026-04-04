@@ -6,7 +6,7 @@ from backend.ml.train.train_fraud_model import train_fraud_model
 
 def test_train_and_load_fraud_model(tmp_path):
     metadata = train_fraud_model(output_dir=str(tmp_path))
-    assert metadata["version"] == "fraud-model-v1"
+    assert metadata["version"] == "fraud-model-v2"
     assert metadata["metrics"]["roc_auc"] > 0.5
     assert metadata["metrics"]["roc_auc"] < 1.0
 
@@ -35,5 +35,5 @@ def test_train_and_load_fraud_model(tmp_path):
     assert result["available"] is True
     assert result["fallback_used"] is False
     assert 0.0 <= result["fraud_probability"] <= 1.0
-    assert result["model_version"] == "fraud-model-v1"
+    assert result["model_version"] == "fraud-model-v2"
     assert result["top_factors"]
