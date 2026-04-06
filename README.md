@@ -66,7 +66,7 @@ Both share identical core logic, with Repo B structured for production deploymen
 
 ### The Problem
 
-Gig delivery workers lose **20–30% of their weekly income** due to disruptions beyond their control:
+Gig delivery workers lose **20–30% of their weekly income** due to disruptions beyond their control :
 
 | Disruption Type | Examples |
 |---|---|
