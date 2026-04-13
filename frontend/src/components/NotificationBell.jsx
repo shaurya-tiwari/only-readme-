@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { notificationsApi } from "../api/notifications";
 import { useAuth } from "../auth/AuthContext";
+import { t } from "../utils/i18n";
 
 const CATEGORY_ICONS = {
   claim_approved: "✅",
@@ -155,7 +156,7 @@ export default function NotificationBell() {
             }}
           >
             <span style={{ fontWeight: 700, fontSize: "14px", color: "var(--primary)" }}>
-              Notifications
+              {t("notif.title")}
             </span>
             {unreadCount > 0 && (
               <button
@@ -170,7 +171,7 @@ export default function NotificationBell() {
                   textDecoration: "underline",
                 }}
               >
-                Mark all read
+                {t("notif.mark_read")}
               </button>
             )}
           </div>
@@ -183,7 +184,7 @@ export default function NotificationBell() {
 
           {!loading && notifications.length === 0 && (
             <div style={{ padding: "24px", textAlign: "center", color: "var(--on-surface-variant)", fontSize: "13px" }}>
-              No notifications yet
+              {t("notif.empty")}
             </div>
           )}
 

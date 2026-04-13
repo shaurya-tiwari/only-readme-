@@ -1,5 +1,7 @@
 import { formatCurrency, formatDateTime, formatScore, humanizeSlug, statusPill } from "../utils/formatters";
 import { patternCopy, workerClaimNarrative, workerFriendlyFactors } from "../utils/decisionNarrative";
+import { t } from "../utils/i18n";
+import WhatsAppPreview from "./WhatsAppPreview";
 
 function renderTriggerList(triggers = []) {
   if (!triggers.length) {
@@ -14,10 +16,10 @@ export default function ClaimDetailPanel({ claim }) {
       <div className="context-panel p-6">
         <div className="mb-5">
           <p className="eyebrow">Claim detail</p>
-          <h3 className="mt-2 text-2xl font-bold text-primary">Select an incident</h3>
+          <h3 className="mt-2 text-2xl font-bold text-primary">{t("claim.select")}</h3>
         </div>
         <p className="text-sm leading-6 text-on-surface-variant">
-          Pick a claim incident from the worker feed to inspect why it was approved, delayed, or rejected.
+          {t("claim.pick")}
         </p>
       </div>
     );
@@ -88,13 +90,13 @@ export default function ClaimDetailPanel({ claim }) {
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-sm text-on-surface-variant">Estimated income lost</p>
+              <p className="text-sm text-on-surface-variant">{t("claim.income_loss")}</p>
               <p className="mt-1 text-lg font-bold" style={{ color: '#ef5350' }}>
                 {formatCurrency(claim.income_loss.estimated_income_loss)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-on-surface-variant">We covered</p>
+              <p className="text-sm text-on-surface-variant">{t("claim.coverage")}</p>
               <p className="mt-1 text-lg font-bold" style={{ color: '#66bb6a' }}>
                 {formatCurrency(claim.income_loss.payout_amount)}
               </p>
@@ -113,6 +115,8 @@ export default function ClaimDetailPanel({ claim }) {
           </p>
         </div>
       ) : null}
+
+      <WhatsAppPreview claim={claim} />
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>

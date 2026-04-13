@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { BrainCircuit, FlaskConical, LayoutDashboard, LogOut, PlaySquare, Settings, Shield, ShieldCheck, Siren, Sparkles } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
 import { useAuth } from "../auth/AuthContext";
 import toast from "react-hot-toast";
+import { t, toggleLang, getLang } from "../utils/i18n";
 
 const workerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -21,6 +22,12 @@ export default function AppFrame({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, role, logout } = useAuth();
+  const [lang, setLangState] = useState(getLang());
+
+  function handleToggleLang() {
+    const next = toggleLang();
+    setLangState(next);
+  }
 
   const navItems = role === "admin" ? adminNav : workerNav;
   const title =
@@ -135,6 +142,16 @@ export default function AppFrame({ children }) {
                 Alert
               </button>
               <NotificationBell />
+              {role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={handleToggleLang}
+                  className="rounded-full bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface-variant transition hover:bg-surface-container-highest"
+                  title="Switch language"
+                >
+                  {t("lang.toggle")}
+                </button>
+              )}
             </div>
           </div>
         </header>
