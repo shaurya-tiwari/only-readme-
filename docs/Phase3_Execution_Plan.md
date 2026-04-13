@@ -46,6 +46,23 @@ Rule:
 - all Phase 3 work starts in the working repo
 - nothing moves to the deployed repo until that slice is validated and documented
 
+## Current Working-Repo Status
+
+As of `2026-04-13`, the working repo has completed the core intent of Waves `0-5`, has meaningful Wave `5.5` governance and realism tooling, has started Wave `6` with real weather/AQI/traffic providers plus minimal shadow diff persistence, and has implemented a light Wave `7` operational credibility slice.
+
+Current reality:
+- working repo is the correct place for:
+  - provider work
+  - replay/calibration work
+  - docs and design memory
+  - operational polish before curated promotion
+- deployed repo should still receive only narrow, validated slices
+- backend is now at the point where further feature work should stay constrained; the next priorities are:
+  - stabilize remaining flaky tests
+  - finish docs
+  - promote reviewed slices
+  - continue demo/judge-facing cleanup
+
 ## Execution Principles
 
 1. Do not start with real providers.
@@ -639,6 +656,21 @@ Replace the mock-only signal layer with a safe real-provider architecture.
 
 - promote only after shadow-mode validation is trustworthy
 
+### Current Working-Repo Status
+
+Implemented in the working repo:
+- real weather provider
+- real AQI provider
+- real traffic provider
+- safe fallback behavior for all three
+- provider source/freshness visibility in health and product-facing surfaces
+- minimal shadow diff persistence for live weather/AQI/traffic comparisons
+
+Not yet finished:
+- platform telemetry provider upgrade
+- richer shadow diff trend/reporting surfaces
+- deeper provider comparison governance outside the current persistence/query layer
+
 ## Wave 7: System Adaptation And Payout Polish
 
 ### Goal
@@ -679,6 +711,23 @@ Make the system behave better under operational pressure and improve payout real
 ### Promotion
 
 - promote only after adaptation proves beneficial in metrics, not just intuition
+
+### Current Working-Repo Status
+
+Implemented as a deliberate light slice:
+- payout lifecycle states:
+  - `processing`
+  - `completed`
+  - `failed`
+- failure-safe payout behavior
+- operator-facing confidence bands
+- review high-load mode visibility
+
+Not yet implemented:
+- deeper queue-pressure policy adaptation
+- payout retry/reversal orchestration
+- richer notification depth
+- full operational adaptation loops
 
 ## Wave 8: Demo, Judging Assets, And Promotion Cleanup
 
@@ -740,6 +789,10 @@ Every wave should pass these gates before promotion:
   - baseline comparison
   - gate outcome
   - executable promotion-contract outcome
+
+Current note:
+- focused provider/shadow regressions are green after the latest Wave 6 slice
+- the repo still has a small number of flaky DB-backed backend tests to stabilize before the next promotion-ready checkpoint
 
 ### Product Gate
 

@@ -1,6 +1,7 @@
 import pytest
 
 from backend.providers.aqi import RealAQIProvider
+from backend.providers.traffic import RealTrafficProvider
 from backend.providers.weather import RealWeatherProvider
 
 
@@ -93,4 +94,54 @@ async def test_real_aqi_provider_falls_back_to_mock_when_fetch_fails(monkeypatch
     assert result.provider == "openweather_air_fallback"
     assert result.is_fallback is True
     assert result.raw_payload["fallback_source"] == "aqi_simulator"
+    assert "fallback_reason" in result.raw_payload
+
+
+@pytest.mark.asyncio
+async def test_real_traffic_provider_returns_tomtom_payload(monkeypatch):
+    provider = RealTrafficProvider()
+
+    async def fake_fetch(zone: str, city: str):
+        return (
+            {
+                "flowSegmentData": {
+                    "currentSpeed": 18,
+                    "freeFlowSpeed": 48,
+                    "currentTravelTime": 420,
+                    "freeFlowTravelTime": 180,
+                    "confidence": 0.92,
+                    "roadClosure": False,
+                }
+            },
+            154,
+            "req-traffic-1",
+        )
+
+    monkeypatch.setattr(provider, "_fetch_tomtom_flow_payload", fake_fetch)
+
+    result = await provider.fetch(None, "south_delhi", "delhi", "real")
+
+    assert result.provider == "tomtom"
+    assert result.is_fallback is False
+    assert result.latency_ms == 154
+    assert result.request_id == "req-traffic-1"
+    assert result.raw_payload["congestion_index"] > 0.6
+    assert result.raw_payload["api_source"] == "tomtom"
+    assert result.raw_payload["average_speed_kmh"] == 18.0
+
+
+@pytest.mark.asyncio
+async def test_real_traffic_provider_falls_back_to_mock_when_fetch_fails(monkeypatch):
+    provider = RealTrafficProvider()
+
+    async def fake_fetch(zone: str, city: str):
+        raise RuntimeError("traffic api unavailable")
+
+    monkeypatch.setattr(provider, "_fetch_tomtom_flow_payload", fake_fetch)
+
+    result = await provider.fetch(None, "south_delhi", "delhi", "real")
+
+    assert result.provider == "tomtom_fallback"
+    assert result.is_fallback is True
+    assert result.raw_payload["fallback_source"] == "traffic_simulator"
     assert "fallback_reason" in result.raw_payload

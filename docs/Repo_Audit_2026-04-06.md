@@ -1,6 +1,6 @@
 # RideShield Two-Repo Audit
 
-Date: 2026-04-06
+Date: 2026-04-13
 
 ## Scope
 
@@ -25,6 +25,9 @@ This revision reflects the current state after:
 - guided distribution shaping, source-alignment gating, and executable promotion-contract follow-up
 - micro-world realism follow-up
 - refreshed intelligence and review surfaces in the working repo
+- real weather, AQI, and traffic provider integration in the working repo
+- minimal live shadow diff persistence for external signals
+- light Wave 7 operational polish
 
 ## Docs Reviewed
 
@@ -76,7 +79,7 @@ This revision reflects the current state after:
 
 ### Working repo
 
-- backend tests: `114/114`
+- focused provider/signal/shadow regressions: green
 - decision memory and replay live locally
 - delayed queue locally cleared for calibration analysis
 - policy rule metadata and layer ownership now emitted in decisions
@@ -115,9 +118,27 @@ This revision reflects the current state after:
 - gray-band district routing now exists in code
 - cluster raw-penalty activity is now retired from the decision engine path
 - admin/intelligence UI now surfaces translated rule/surface friction and evidence mix
+- real signal providers now exist for:
+  - weather
+  - AQI
+  - traffic
+- provider source/freshness visibility now exists in health and product-facing surfaces
+- minimal observational shadow diff persistence now exists for:
+  - weather
+  - AQI
+  - traffic
+- light Wave 7 operational polish now exists:
+  - payout lifecycle states
+  - failure-safe payout handling
+  - confidence bands
+  - high-load mode visibility
 - frontend tests: `73/73`
 - frontend lint: passed
 - frontend build: passed
+
+Current caution:
+- the full backend suite is not fully closed at this moment
+- a small number of DB-backed/flaky tests still needs stabilization before the next promotion-ready checkpoint
 
 ## What Changed Since The Earlier Audit
 
@@ -188,6 +209,9 @@ The following are now true:
 - the next realism insight is now clear:
   - cluster is materially improved
   - uncertainty emergence is now the main remaining realism bottleneck
+- provider reality is now materially started:
+  - weather, AQI, and traffic are no longer mock-only
+  - live-vs-mock disagreement can now be persisted for observation
 
 ## Deployed Repo Audit
 
@@ -259,8 +283,11 @@ The following are now true:
   - explicit gray-band districts
   - cluster routing-only metadata behavior
   - translated admin/intelligence rule-surface visibility
+  - real weather/AQI/traffic providers with safe fallback
+  - minimal live shadow diff persistence
+  - light Wave 7 operational credibility surfaces
 - Backend verification is strong:
-  - `114/114` passing
+  - focused provider/signal/shadow slices are currently green
 
 ### Findings
 
@@ -298,6 +325,14 @@ The following are now true:
   - rule and surface divergence dropped materially
   - uncertainty emergence remains the main realism gap
 - Policy introspection is now partially wired into the UI, but still lacks deeper trend views and explicit rule-impact ranking.
+- Platform telemetry is now the weakest major signal layer.
+  - weather, AQI, and traffic have real-provider paths
+  - platform behavior still needs a stronger provider-style telemetry module
+- Shadow comparison is now persisted, but only minimally.
+  - it is useful for observation
+  - it is not yet a polished operator workflow
+- The remaining backend risk is no longer lack of provider integration.
+  - it is test stability and promotion discipline
 
 #### LOW
 
@@ -356,6 +391,7 @@ The following are now true:
   - structural correctness
   - relational realism
   instead of treating both as one problem.
+- The system can now compare live external signals against mock baselines without immediately trusting those comparisons for routing changes.
 
 ### What Still Needs Care
 
@@ -430,6 +466,7 @@ Current architectural upgrades:
 11. The next risk is policy-health drift:
    - micro-rules can accumulate faster than they are governed
    - early analytics can trigger premature pruning if evidence quality is ignored
+12. A small number of backend tests are still flaky or environment-sensitive and should be stabilized before the next promotion-ready checkpoint.
 
 ## Recommendation
 
@@ -455,6 +492,7 @@ Current architectural upgrades:
 - Do not run the `100000` experiment as a decision input until source-alignment divergence is materially closer to baseline behavior as well.
 - Do not let realism research consume demo work once the system becomes directionally trustworthy for judges.
 - Do not delete or relax rules on first analytics contact; validate impact against evidence quality first.
+- Use the new real-provider and shadow-diff work as narrow promotion slices rather than promoting the whole working repo state at once.
 - Do not push deploy-facing changes until grading is complete.
 
 ## Bottom Line

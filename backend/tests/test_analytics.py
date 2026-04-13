@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from backend.database import async_session_factory
 from backend.db.models import Claim, DecisionLog, Event, Policy, Worker, Zone
+from backend.core.location_service import location_service
 from backend.api.analytics import (
     _build_decision_memory_summary,
     _build_false_review_pattern_summary,
@@ -173,6 +174,10 @@ async def test_admin_overview_includes_decision_memory_summary(client, admin_coo
     async with async_session_factory() as db:
         now = utc_now_naive()
         zone = (await db.execute(select(Zone).order_by(Zone.slug.asc()))).scalars().first()
+        if zone is None:
+            await location_service.ensure_bootstrap(db, strict_backfill=True)
+            await db.commit()
+            zone = (await db.execute(select(Zone).order_by(Zone.slug.asc()))).scalars().first()
         assert zone is not None
         zone_slug = zone.slug
         phone_suffix = str(uuid4().int)[-6:]

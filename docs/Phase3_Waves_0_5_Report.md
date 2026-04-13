@@ -1,6 +1,6 @@
-# Phase 3 Progress Report: Waves 0-5 Plus Realism Passes
+# Phase 3 Progress Report: Waves 0-7 Light Plus Realism And Provider Passes
 
-Date: 2026-04-07
+Date: 2026-04-13
 
 This report replaces the fragmented wave notes for Waves 0 through 5 and now includes the post-Wave-5 enforcement passes, the first Wave 5.5 implementation slice, the policy-health/admin-translation follow-up, the pressure-profile/source-comparison follow-up, the large-experiment governance tooling, the explicit gray-band district split, and the first micro-world realism passes.
 
@@ -26,6 +26,13 @@ The working repo currently contains:
 - policy analytics and promotion governance
 - controlled synthetic traffic and source segmentation
 - a lightweight behavioral micro-world for realism work
+- real weather, AQI, and traffic provider paths with safe fallback handling
+- persisted provider snapshots and minimal shadow diff persistence for live signal comparison
+- light Wave 7 operational surfaces:
+  - payout lifecycle states
+  - failure-safe payout behavior
+  - confidence bands
+  - high-load mode
 
 The system is structurally sound.
 
@@ -79,6 +86,38 @@ It is realism:
   - `sufficient_sample_size`
   - `multi_source_consistency`
   - `source_alignment_valid`
+
+### Real Signal And Observation Layer
+
+- real signal providers now exist for:
+  - weather via OpenWeather
+  - AQI via OpenWeather Air Pollution
+  - traffic via TomTom flow
+- all three use the same safe provider pattern:
+  - normalized provider output
+  - snapshot persistence
+  - explicit provider metadata
+  - fallback to simulation-safe mock paths
+- source/freshness state is now visible in product/admin surfaces
+- minimal live shadow diff persistence now exists for:
+  - weather
+  - AQI
+  - traffic
+
+Important constraint:
+- live shadow diffs are observational only
+- they do not change current decision routing
+
+### Operational Polish Layer
+
+- payout lifecycle now exposes:
+  - `processing`
+  - `completed`
+  - `failed`
+- claim approval and payout execution are now separated cleanly:
+  - payout failure does not corrupt an approved claim
+- operator-facing confidence is now translated into confidence bands
+- high-load mode is surfaced in the review/admin path
 
 ### Simulation Foundation
 
@@ -142,6 +181,14 @@ What still fails:
 - behavioral difficulty still diverges too much from baseline
 - large synthetic runs like `100000` are still not trustworthy as calibration evidence
 - this is research-level tuning, not required for demo viability
+- platform telemetry is still simulated and not yet upgraded into a richer provider module
+- live shadow diff persistence now exists, but it is still minimal:
+  - persisted
+  - queryable
+  - not yet deeply surfaced as a product feature
+- backend test reliability is now a repo-level concern:
+  - focused provider/signal tests are green
+  - the full suite currently still has a small number of flaky DB-backed failures to stabilize
 
 ## Next Steps
 
@@ -310,6 +357,49 @@ Follow-up completed after Wave 5:
 - intelligence and admin surfaces now include translated policy-health summaries instead of only raw memory analytics
 - rule and surface friction are exposed with admin-safe labels, not raw engine IDs
 - evidence mix now shows `traffic_source` distribution so baseline and simulated behavior are not visually collapsed together
+- signal-runtime surfaces now expose:
+  - live vs backup vs mock state
+  - freshness
+  - latest provider status
+
+## Wave 6: Real Provider Integration And Minimal Shadow Observation
+
+Completed:
+- real weather provider
+- real AQI provider
+- real traffic provider
+- safe fallback behavior for all three live providers
+- provider snapshot persistence
+- source and freshness visibility in health/admin/intelligence surfaces
+- minimal live shadow diff persistence for:
+  - weather
+  - AQI
+  - traffic
+
+What this means:
+- the working repo is no longer mock-only for external conditions
+- real-vs-simulated disagreement is now persisted without changing current routing logic
+
+What is still not finished:
+- richer platform telemetry provider work
+- deeper shadow diff productization
+- broader diff-based analytics and trend views
+
+## Wave 7 Light: Operational Credibility Slice
+
+Completed:
+- payout lifecycle states:
+  - `processing`
+  - `completed`
+  - `failed`
+- failure-safe payout behavior:
+  - approved claims remain approved even if payout execution fails
+- operator confidence bands exposed in plain language
+- review queue/admin high-load mode visibility
+
+Why it mattered:
+- the system now looks more operationally complete without pretending to be full production money movement
+- the worker/admin surfaces can explain lifecycle and reliability more clearly
 
 ## Post-Wave-5 Enforcement Passes
 
@@ -647,11 +737,13 @@ Still working-repo only:
 
 ## Validation Snapshot
 
-Current working-repo verification after the latest enforcement pass:
-- backend tests: `114/114`
+Current working-repo verification after the latest provider and shadow-observation pass:
 - frontend tests: `73/73`
 - frontend lint: passed
 - frontend build: passed
+- focused provider/signal/shadow tests: passed
+- full backend suite is close but not currently fully closed:
+  - a small set of DB-backed/flaky tests still needs stabilization before the next push/promotion pass
 
 Frontend verification required an escalated run because sandboxed Node execution hit a filesystem `EPERM` before the app code executed.
 Backend verification requires the local Docker/Postgres test DB on host port `5433`; if Docker is not running, the suite fails at connection setup rather than on app logic.

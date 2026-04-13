@@ -13,6 +13,7 @@ from backend.core.snapshot_writer import snapshot_writer
 from backend.database import async_session_factory
 from backend.db.models import ShadowSignalDiff, SignalSnapshot
 from backend.providers.aqi import RealAQIProvider
+from backend.providers.traffic import RealTrafficProvider
 from backend.providers.weather import RealWeatherProvider
 from backend.utils.time import utc_now_naive
 
@@ -172,3 +173,107 @@ async def test_signal_service_supports_real_aqi_with_safe_fallback(monkeypatch):
     assert aqi_snapshot.provider == "openweather_air"
     assert aqi_snapshot.source_mode == "real"
     assert aqi_snapshot.is_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_signal_service_supports_real_traffic_with_safe_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "SIGNAL_SOURCE_MODE", "real")
+    monkeypatch.setattr(settings, "WEATHER_SOURCE", "mock")
+    monkeypatch.setattr(settings, "AQI_SOURCE", "mock")
+    monkeypatch.setattr(settings, "TRAFFIC_SOURCE", "real")
+    monkeypatch.setattr(settings, "PLATFORM_SOURCE", "mock")
+
+    async def fake_fetch(self, zone: str, city: str):
+        return (
+            {
+                "flowSegmentData": {
+                    "currentSpeed": 14,
+                    "freeFlowSpeed": 42,
+                    "currentTravelTime": 510,
+                    "freeFlowTravelTime": 210,
+                    "confidence": 0.94,
+                    "roadClosure": False,
+                }
+            },
+            132,
+            "traffic-live-1",
+        )
+
+    monkeypatch.setattr(RealTrafficProvider, "_fetch_tomtom_flow_payload", fake_fetch)
+
+    async with async_session_factory() as session:
+        payload = await signal_service.fetch_zone_snapshot(session, "south_delhi", "delhi")
+        snapshots = (await session.execute(select(SignalSnapshot))).scalars().all()
+
+    traffic_snapshot = next(snapshot for snapshot in snapshots if snapshot.signal_type == "traffic")
+    assert payload["source_mode"] == "real"
+    assert payload["sources"]["traffic"] == "tomtom"
+    assert payload["traffic"] > 0.7
+    assert traffic_snapshot.provider == "tomtom"
+    assert traffic_snapshot.source_mode == "real"
+    assert traffic_snapshot.is_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_signal_service_persists_live_shadow_diffs_for_real_weather_aqi_and_traffic(monkeypatch):
+    monkeypatch.setattr(settings, "SIGNAL_SOURCE_MODE", "real")
+    monkeypatch.setattr(settings, "WEATHER_SOURCE", "real")
+    monkeypatch.setattr(settings, "AQI_SOURCE", "real")
+    monkeypatch.setattr(settings, "TRAFFIC_SOURCE", "real")
+    monkeypatch.setattr(settings, "PLATFORM_SOURCE", "mock")
+
+    async def fake_weather(self, zone: str, city: str):
+        return (
+            {
+                "rain": {"1h": 8.0},
+                "main": {"temp": 31.0},
+                "weather": [{"main": "Rain"}],
+            },
+            111,
+            "weather-shadow-live",
+        )
+
+    async def fake_aqi(self, zone: str, city: str):
+        return (
+            {
+                "list": [
+                    {
+                        "main": {"aqi": 4},
+                        "components": {"pm2_5": 88.2, "pm10": 122.5},
+                    }
+                ]
+            },
+            112,
+            "aqi-shadow-live",
+        )
+
+    async def fake_traffic(self, zone: str, city: str):
+        return (
+            {
+                "flowSegmentData": {
+                    "currentSpeed": 16,
+                    "freeFlowSpeed": 40,
+                    "currentTravelTime": 420,
+                    "freeFlowTravelTime": 220,
+                    "confidence": 0.91,
+                    "roadClosure": False,
+                }
+            },
+            113,
+            "traffic-shadow-live",
+        )
+
+    monkeypatch.setattr(RealWeatherProvider, "_fetch_openweather_payload", fake_weather)
+    monkeypatch.setattr(RealAQIProvider, "_fetch_openweather_payload", fake_aqi)
+    monkeypatch.setattr(RealTrafficProvider, "_fetch_tomtom_flow_payload", fake_traffic)
+
+    async with async_session_factory() as session:
+        payload = await signal_service.fetch_zone_snapshot(session, "south_delhi", "delhi")
+        diffs = (await session.execute(select(ShadowSignalDiff))).scalars().all()
+
+    assert payload["source_mode"] == "real"
+    assert payload["shadow_diffs"] == []
+    assert len(diffs) == 3
+    assert {diff.signal_type for diff in diffs} == {"weather", "aqi", "traffic"}
+    assert {diff.primary_provider for diff in diffs} == {"openweather", "openweather_air", "tomtom"}
+    assert {diff.shadow_provider for diff in diffs} == {"weather_simulator", "aqi_simulator", "traffic_simulator"}

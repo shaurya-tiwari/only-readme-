@@ -71,6 +71,17 @@ class ProviderRegistry:
             return self._providers[signal_type]["mock"]
         return self._providers[signal_type].get("mock")
 
+    def get_comparison_provider(self, signal_type: str) -> SignalProvider | None:
+        if signal_type not in {"weather", "aqi", "traffic"}:
+            return None
+
+        configured_source = self.configured_source(signal_type)
+        if configured_source == "real":
+            return self._providers[signal_type].get("mock")
+        if configured_source == "mock":
+            return self._providers[signal_type].get("real")
+        return None
+
     def normalize(self, fetch_result: ProviderFetchResult) -> NormalizedSignalSnapshot:
         return self._normalizers[fetch_result.signal_type](fetch_result)
 

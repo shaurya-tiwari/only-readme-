@@ -182,6 +182,15 @@ The correct next provider step is:
 - measure disagreement and freshness
 - only then consider cutover
 
+Current working-repo note:
+- real weather, AQI, and traffic providers now exist
+- minimal shadow diff persistence is now implemented for live observation
+- the remaining provider gap is no longer "start real data"
+- it is:
+  - strengthen platform telemetry
+  - expand diff/product reporting carefully
+  - promote only narrow validated provider slices
+
 ### 9. The System Also Needs Controlled Stimulus
 
 Another emerging issue is not architecture failure, but traffic starvation.

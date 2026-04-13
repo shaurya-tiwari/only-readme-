@@ -2,6 +2,37 @@
 
 This file is the implementation baseline for the current repo, not a copy of the sprint markdowns. `Sprint_1.md`, `Sprint_2.md`, and `Sprint_3.md` were used as planning references, but the codebase has intentionally diverged where correctness, maintainability, Windows compatibility, and demo clarity required it.
 
+### Current Working Snapshot (2026-04-13)
+
+- Current repo posture:
+  - working repo is now the main Phase 3 build surface
+  - deployed repo should only receive curated stable slices
+- Current Phase 3 state:
+  - Waves `0-5` core intent implemented
+  - Wave `5.5` governance and realism tooling materially implemented
+  - Wave `6` now includes real providers for:
+    - weather
+    - AQI
+    - traffic
+  - Wave `7` now has a deliberate light slice:
+    - payout lifecycle states
+    - failure-safe payout handling
+    - confidence bands
+    - high-load mode visibility
+- Current provider/runtime state:
+  - external real providers now use safe fallback instead of replacing the old mock path blindly
+  - source/freshness status is visible in health/admin/intelligence surfaces
+  - minimal live shadow diff persistence now exists for weather/AQI/traffic
+  - shadow diffs are observational only and do not affect live decision routing
+- Current known backend reality:
+  - focused provider/signal/shadow tests are green
+  - frontend tests/build remain green
+  - the full backend suite still has a small number of flaky or environment-sensitive failures to stabilize
+- Current backend priority:
+  - stabilize flaky tests
+  - stop adding backend scope unless the next slice is truly necessary
+  - move toward curated promotion and demo/judge packaging
+
 ### Phase 2 Submission Snapshot
 
 - Submission posture:
@@ -35,12 +66,15 @@ This file is the implementation baseline for the current repo, not a copy of the
 
 ### Latest Repo Notes
 
-- Latest push snapshot date: `2026-04-03`
+- Latest push-ready local snapshot date: `2026-04-13`
 - Final verification for the current worktree:
-  - backend tests: `56 passed`
+  - focused provider/signal/shadow regressions: passed
   - frontend tests: `63 passed`
   - frontend build: successful
   - frontend lint: successful
+- Current exception:
+  - the full backend suite is no longer at the old `114/114` green point after the latest shadow/provider pass
+  - a small number of DB-backed tests still needs stabilization before the next promotion-ready checkpoint
 - Current session/auth state:
   - auth cookies are now root-scoped so worker/admin sessions survive redirects into protected routes
   - localhost frontend also supports bearer fallback during session restore/login flows when a cookie is unavailable
@@ -66,6 +100,15 @@ This file is the implementation baseline for the current repo, not a copy of the
 - Fraud ML is integrated into hybrid claim-path scoring with runtime fallback.
 - The frontend now uses httpOnly cookie sessions with minimal role-only local metadata.
 - Earlier audit notes were merged into this file so the implementation history stays in one place.
+- Real provider work now exists for:
+  - weather via OpenWeather
+  - AQI via OpenWeather Air Pollution
+  - traffic via TomTom
+- Minimal shadow diff persistence now exists for live comparisons between real and mock behavior for:
+  - weather
+  - AQI
+  - traffic
+- Platform telemetry is still the weakest major signal layer and is the next logical provider-style backend slice if backend work reopens.
 
 ### Current Baseline
 
