@@ -6,15 +6,10 @@ import asyncio
 import sys
 import time
 from datetime import datetime
-from datetime import timedelta, timezone
-from decimal import Decimal
-from uuid import UUID
 
 import httpx
-from sqlalchemy import select
 
-from backend.database import async_session_factory
-from backend.db.models import TrustScore, Worker, WorkerActivity
+from backend.core.demo_scenarios import enrich_worker_for_demo
 
 
 BASE_URL = "http://localhost:8000"
@@ -82,82 +77,6 @@ async def admin_headers(client: httpx.AsyncClient) -> dict:
     login_response.raise_for_status()
     token = login_response.json()["token"]
     return {"Authorization": f"Bearer {token}"}
-
-
-async def enrich_worker_for_demo(worker_id: str, zone: str, profile: str) -> None:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    worker_uuid = UUID(worker_id)
-
-    async with async_session_factory() as db:
-        worker = await db.get(Worker, worker_uuid)
-        if not worker:
-            return
-
-        trust = next(iter((await db.execute(
-            select(TrustScore).where(TrustScore.worker_id == worker.id)
-        )).scalars().all()), None)
-
-        if trust is None:
-            trust = TrustScore(worker_id=worker.id)
-            db.add(trust)
-
-        if profile == "legit":
-            worker.created_at = now - timedelta(days=30)
-            worker.device_fingerprint = "rahul_device_android_01"
-            worker.ip_address = "10.10.0.21"
-            trust.score = Decimal("0.750")
-            trust.total_claims = 12
-            trust.approved_claims = 10
-            trust.fraud_flags = 0
-            trust.account_age_days = 30
-            trust.device_stability = Decimal("0.900")
-
-            for i in range(8):
-                db.add(
-                    WorkerActivity(
-                        worker_id=worker.id,
-                        zone=zone,
-                        latitude=Decimal("28.5200000") + Decimal(str(i * 0.002)),
-                        longitude=Decimal("77.2200000") + Decimal(str(i * 0.003)),
-                        speed_kmh=Decimal(str(14 + i * 3)),
-                        has_delivery_stop=True,
-                        recorded_at=now - timedelta(hours=4) + timedelta(minutes=i * 25),
-                    )
-                )
-        elif profile == "fraud":
-            worker.created_at = now - timedelta(days=2)
-            worker.device_fingerprint = None
-            worker.ip_address = None
-            trust.score = Decimal("0.100")
-            trust.total_claims = 0
-            trust.approved_claims = 0
-            trust.fraud_flags = 0
-            trust.account_age_days = 2
-            trust.device_stability = Decimal("0.300")
-        elif profile == "edge":
-            worker.created_at = now - timedelta(days=5)
-            worker.device_fingerprint = "arun_device_android_01"
-            worker.ip_address = "10.10.0.88"
-            trust.score = Decimal("0.150")
-            trust.total_claims = 0
-            trust.approved_claims = 0
-            trust.fraud_flags = 0
-            trust.account_age_days = 5
-            trust.device_stability = Decimal("0.500")
-            db.add(
-                WorkerActivity(
-                    worker_id=worker.id,
-                    zone=zone,
-                    latitude=Decimal("28.6300000"),
-                    longitude=Decimal("77.3000000"),
-                    speed_kmh=Decimal("12.0"),
-                    has_delivery_stop=True,
-                    recorded_at=now - timedelta(hours=3),
-                )
-            )
-
-        trust.last_updated = now
-        await db.commit()
 
 
 async def scenario_legitimate_rain(client: httpx.AsyncClient) -> dict:

@@ -11,10 +11,12 @@ def normalize_platform(fetch_result: ProviderFetchResult) -> NormalizedSignalSna
         "orders_per_hour": int(fetch_result.raw_payload.get("orders_per_hour", 0) or 0),
         "normal_avg_orders": int(fetch_result.raw_payload.get("normal_avg_orders", 0) or 0),
         "order_density_drop": float(fetch_result.raw_payload.get("order_density_drop", 0) or 0),
+        "active_workers": int(fetch_result.raw_payload.get("active_workers", 0) or 0),
+        "fulfillment_delay": float(fetch_result.raw_payload.get("fulfillment_delay", 0) or 0),
     }
     return build_normalized_snapshot(
         fetch_result,
         normalized_metrics,
-        ["orders_per_hour", "normal_avg_orders", "order_density_drop"],
+        ["orders_per_hour", "normal_avg_orders", "order_density_drop", "active_workers", "fulfillment_delay"],
     )
 

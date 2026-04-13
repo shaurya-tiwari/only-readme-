@@ -13,6 +13,7 @@ from backend.core.snapshot_writer import snapshot_writer
 from backend.database import async_session_factory
 from backend.db.models import ShadowSignalDiff, SignalSnapshot
 from backend.providers.aqi import RealAQIProvider
+from backend.providers.platform import DatabasePlatformProvider
 from backend.providers.traffic import RealTrafficProvider
 from backend.providers.weather import RealWeatherProvider
 from backend.utils.time import utc_now_naive
@@ -277,3 +278,47 @@ async def test_signal_service_persists_live_shadow_diffs_for_real_weather_aqi_an
     assert {diff.signal_type for diff in diffs} == {"weather", "aqi", "traffic"}
     assert {diff.primary_provider for diff in diffs} == {"openweather", "openweather_air", "tomtom"}
     assert {diff.shadow_provider for diff in diffs} == {"weather_simulator", "aqi_simulator", "traffic_simulator"}
+
+
+@pytest.mark.asyncio
+async def test_signal_service_supports_behavioral_platform_provider(monkeypatch):
+    monkeypatch.setattr(settings, "SIGNAL_SOURCE_MODE", "real")
+    monkeypatch.setattr(settings, "WEATHER_SOURCE", "mock")
+    monkeypatch.setattr(settings, "AQI_SOURCE", "mock")
+    monkeypatch.setattr(settings, "TRAFFIC_SOURCE", "mock")
+    monkeypatch.setattr(settings, "PLATFORM_SOURCE", "db")
+
+    async def fake_build(self, db, zone: str, city: str, captured_at):
+        return {
+            "zone": zone,
+            "city": city,
+            "timestamp": captured_at.isoformat(),
+            "orders_per_hour": 64,
+            "normal_avg_orders": 140,
+            "order_density_drop": 0.543,
+            "active_workers": 24,
+            "fulfillment_delay": 33.2,
+            "platform_status": "stressed",
+            "confidence": 0.86,
+            "api_source": "platform_db",
+            "scenario": "normal",
+            "daypart": "lunch",
+            "zone_class": "high_density",
+            "model_variant": "behavioral",
+        }
+
+    monkeypatch.setattr(DatabasePlatformProvider, "_build_platform_status", fake_build)
+
+    async with async_session_factory() as session:
+        payload = await signal_service.fetch_zone_snapshot(session, "south_delhi", "delhi")
+        snapshots = (await session.execute(select(SignalSnapshot))).scalars().all()
+
+    platform_snapshot = next(snapshot for snapshot in snapshots if snapshot.signal_type == "platform")
+    assert payload["source_mode"] == "real"
+    assert payload["sources"]["platform"] == "platform_db"
+    assert payload["platform_outage"] == 0.543
+    assert platform_snapshot.provider == "platform_db"
+    assert platform_snapshot.source_mode == "real"
+    assert platform_snapshot.is_fallback is False
+    assert platform_snapshot.normalized_metrics["active_workers"] == 24
+    assert platform_snapshot.normalized_metrics["fulfillment_delay"] == 33.2

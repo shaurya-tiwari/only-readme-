@@ -1,5 +1,8 @@
 """Smoke tests for fraud model training and runtime loading."""
 
+from pathlib import Path
+
+from backend.config import settings
 from backend.core.fraud_model_service import FraudModelService
 from backend.ml.train.train_fraud_model import train_fraud_model
 
@@ -37,3 +40,13 @@ def test_train_and_load_fraud_model(tmp_path):
     assert 0.0 <= result["fraud_probability"] <= 1.0
     assert result["model_version"] == "fraud-model-v2"
     assert result["top_factors"]
+
+
+def test_fraud_model_service_prefers_configured_fraud_artifact_dir(monkeypatch):
+    monkeypatch.setattr(settings, "FRAUD_ML_ARTIFACT_DIR", "backend/ml/artifacts")
+    monkeypatch.setattr(settings, "ML_ARTIFACT_DIR", "backend/ml/artifacts_v2")
+    service = FraudModelService()
+
+    assert service.model_available is True
+    assert service.get_model_info()["version"] == "fraud-model-v2"
+    assert service.artifact_dir == Path("backend/ml/artifacts")

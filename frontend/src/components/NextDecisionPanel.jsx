@@ -42,11 +42,6 @@ export default function NextDecisionPanel({ incident }) {
     : incident.trigger_type
       ? [incident.trigger_type]
       : [];
-  const topFactors = Array.isArray(incident.top_factors) ? incident.top_factors.slice(0, 3) : [];
-  const fraudProbability =
-    incident.max_fraud_probability === null || incident.max_fraud_probability === undefined
-      ? null
-      : Math.round(Number(incident.max_fraud_probability || 0) * 100);
   const narrative = adminIncidentNarrative(incident);
 
   return (
@@ -95,16 +90,9 @@ export default function NextDecisionPanel({ incident }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-[18px] border border-primary/10 bg-surface-container-low p-4">
-          <p className="text-sm text-on-surface-variant">Fraud probability</p>
-          <p className="mt-2 text-lg font-semibold text-primary">{fraudProbability === null ? "--" : `${fraudProbability}%`}</p>
-          <p className="mt-2 text-xs text-on-surface-variant">
-            {incident.fraud_model_version || "rule-based"} {incident.fraud_fallback_used ? "- fallback" : "- hybrid active"}
-          </p>
-        </div>
-        <div className="rounded-[18px] border border-primary/10 bg-surface-container-low p-4">
-          <p className="text-sm text-on-surface-variant">Review pattern</p>
+          <p className="text-sm text-on-surface-variant">Pattern</p>
           <p className="mt-2 text-lg font-semibold text-primary">{narrative.patternLabel}</p>
-          <p className="mt-2 text-xs leading-6 text-on-surface-variant">{narrative.summary}</p>
+          <p className="mt-2 text-xs leading-6 text-on-surface-variant">{narrative.reason}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="pill-neutral">Primary: {narrative.primary}</span>
             {narrative.evidence.map((factor) => (
@@ -113,21 +101,12 @@ export default function NextDecisionPanel({ incident }) {
               </span>
             ))}
           </div>
-          {incident.uncertainty_case ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="pill-subtle">Uncertainty: {humanizeSlug(incident.uncertainty_case)}</span>
-            </div>
-          ) : topFactors.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {topFactors.map((factor) => (
-                <span key={factor.factor} className="pill-neutral">
-                  {factor.label}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="mt-2 inline-flex text-sm text-on-surface-variant">No ML factors available.</span>
-          )}
+        </div>
+        <div className="rounded-[18px] border border-primary/10 bg-surface-container-low p-4">
+          <p className="text-sm text-on-surface-variant">Recommended action</p>
+          <p className="mt-2 text-sm leading-6 text-on-surface">{narrative.recommendation}</p>
+          <p className="mt-4 text-sm text-on-surface-variant">Historical tendency</p>
+          <p className="mt-2 text-xs leading-6 text-on-surface-variant">{narrative.historicalTendency}</p>
         </div>
       </div>
 

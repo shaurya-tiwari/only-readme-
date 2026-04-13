@@ -44,7 +44,7 @@ function confidenceTone(band) {
   return "badge-pending";
 }
 
-export default function ReviewQueue({ claims = [], resolvingId, onResolve, highLoadMode = false, highLoadThreshold = 0 }) {
+export default function ReviewQueue({ claims = [], isLoading = false, resolvingId, onResolve, highLoadMode = false, highLoadThreshold = 0 }) {
   const incidents = groupClaimsByIncident(claims, { bucketMinutes: 90 });
   const hasActiveQueue = incidents.length > 0;
 
@@ -68,7 +68,30 @@ export default function ReviewQueue({ claims = [], resolvingId, onResolve, highL
       </div>
 
       <div className="space-y-3">
-        {hasActiveQueue ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-primary/10 bg-surface-container-high/40 p-5">
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 w-1/3 rounded bg-primary/10"></div>
+                <div className="h-3 w-2/3 rounded bg-primary/8"></div>
+                <div className="h-3 w-1/2 rounded bg-primary/8"></div>
+                <div className="mt-4 grid grid-cols-4 gap-3">
+                  <div className="h-12 rounded-[16px] bg-primary/8"></div>
+                  <div className="h-12 rounded-[16px] bg-primary/8"></div>
+                  <div className="h-12 rounded-[16px] bg-primary/8"></div>
+                  <div className="h-12 rounded-[16px] bg-primary/8"></div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-[24px] border border-primary/10 bg-surface-container-high/40 p-5">
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 w-1/4 rounded bg-primary/10"></div>
+                <div className="h-3 w-1/2 rounded bg-primary/8"></div>
+              </div>
+            </div>
+            <p className="text-center text-sm text-on-surface-variant">Loading review queue…</p>
+          </div>
+        ) : hasActiveQueue ? (
           incidents.map((incident) => (
             (() => {
               const narrative = adminIncidentNarrative(incident);
@@ -131,27 +154,23 @@ export default function ReviewQueue({ claims = [], resolvingId, onResolve, highL
 
                   <div className="mb-4 rounded-[18px] border border-primary/8 bg-surface-container-high/75 p-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
-                      <span className="font-semibold text-primary">
-                        {incident.fraud_model_version || "rule-based"} {incident.fraud_fallback_used ? "- fallback" : "- hybrid active"}
-                      </span>
+                      <span className="font-semibold text-primary">Priority: {incident.priority_reason || "Review queue"}</span>
+                      <span>Case confidence {humanizeSlug(incident.decision_confidence_band)}</span>
                       <span>
-                        Fraud probability {incident.max_fraud_probability === null || incident.max_fraud_probability === undefined
+                        Payment safety {incident.max_fraud_probability === null || incident.max_fraud_probability === undefined
                           ? "--"
                           : `${Math.round(Number(incident.max_fraud_probability || 0) * 100)}%`}
                       </span>
-                      <span>Priority {incident.priority_reason || "Review queue"}</span>
                     </div>
                     <div className="mt-3 rounded-[16px] border border-primary/8 bg-surface-container-low/90 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Review pattern</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Pattern</p>
                           <p className="mt-2 text-sm font-semibold text-primary">{narrative.patternLabel}</p>
                         </div>
-                        {incident.uncertainty_case ? (
-                          <span className="pill-subtle">{humanizeSlug(incident.uncertainty_case)}</span>
-                        ) : null}
+                        <span className="pill-subtle">{humanizeSlug(incident.urgency_band)} queue</span>
                       </div>
-                      <p className="mt-3 text-sm leading-6 text-on-surface-variant">{narrative.summary}</p>
+                      <p className="mt-3 text-sm leading-6 text-on-surface-variant">{narrative.reason}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="pill-neutral">Primary: {narrative.primary}</span>
                         {narrative.evidence.map((factor) => (
@@ -159,6 +178,16 @@ export default function ReviewQueue({ claims = [], resolvingId, onResolve, highL
                             {factor}
                           </span>
                         ))}
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[14px] border border-primary/6 bg-surface-container-high/70 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant">Recommended action</p>
+                          <p className="mt-2 text-sm leading-6 text-on-surface">{narrative.recommendation}</p>
+                        </div>
+                        <div className="rounded-[14px] border border-primary/6 bg-surface-container-high/70 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant">Historical tendency</p>
+                          <p className="mt-2 text-sm leading-6 text-on-surface-variant">{narrative.historicalTendency}</p>
+                        </div>
                       </div>
                     </div>
                   </div>

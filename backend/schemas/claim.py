@@ -49,6 +49,7 @@ class ClaimResponse(BaseModel):
     primary_factor: Optional[str] = None
     secondary_factors: Optional[List[str]] = None
     payout_info: Optional[Dict[str, Any]] = None
+    decision_experience: Optional[Dict[str, Any]] = None
 
 
 class ClaimListResponse(BaseModel):

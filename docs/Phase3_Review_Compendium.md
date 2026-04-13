@@ -20,6 +20,7 @@ It is the consolidated architectural and product review layer that sits between:
 - `Phase3_Roadmap.md`
 - `Phase3_Execution_Plan.md`
 - `Current_Difficulties_and_Open_Questions.md`
+- `questions_n_answers.md`
 - `Phase3_Waves_0_5_Report.md`
 
 ## Consolidated Review
@@ -185,9 +186,12 @@ The correct next provider step is:
 Current working-repo note:
 - real weather, AQI, and traffic providers now exist
 - minimal shadow diff persistence is now implemented for live observation
+- platform telemetry is now upgraded from a thin simulator path into a behavioral provider-style engine
+- deterministic demo stories now exist as app-owned product flows instead of relying only on generic simulator toggles
+- exploratory simulation is now separated into a dedicated `Scenario Lab` surface instead of overloading the deterministic demo runner
 - the remaining provider gap is no longer "start real data"
 - it is:
-  - strengthen platform telemetry
+  - validate and calibrate platform telemetry
   - expand diff/product reporting carefully
   - promote only narrow validated provider slices
 
@@ -374,6 +378,10 @@ That is how the gray band becomes governable instead of remaining one crowded ro
 3. Keep decision growth layered instead of organic.
 4. Separate internal diagnostics from operator-facing and worker-facing copy.
 5. Iterate policy surfaces based on evidence instead of assuming the first definitions are final.
+6. Preserve the split between:
+   - deterministic demo storytelling
+   - exploratory scenario experimentation
+   so product safety and experimentation do not collapse back into one control surface.
 
 ### Promotion Priority
 

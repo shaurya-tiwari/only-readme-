@@ -12,6 +12,7 @@ export default function ScenarioCard({ scenario, running, result, thresholds, on
   const zoneResult = result?.details?.[0];
   const signals = zoneResult?.signals || {};
   const firedTriggers = zoneResult?.triggers_fired || [];
+  const worker = result?.worker;
   const summaryRows = result
     ? [
         { label: "Incidents", value: result.events_created },
@@ -54,9 +55,22 @@ export default function ScenarioCard({ scenario, running, result, thresholds, on
 
       <p className="text-sm leading-6 text-on-surface-variant">{scenario.summary}</p>
       <p className="mt-3 text-sm font-medium text-on-surface-variant">{scenario.outcome}</p>
+      <p className="mt-3 text-xs uppercase tracking-[0.18em] text-on-surface-variant">
+        {humanizeSlug(scenario.city)} / {humanizeSlug(scenario.zone)} | {scenario.setup}
+      </p>
 
       {result ? (
         <div className="mt-5 space-y-4 rounded-[24px] border border-primary/10 bg-surface-container-lowest/95 p-5 shadow-[inset_0_1px_0_rgba(105,248,233,0.05)]">
+          {worker ? (
+            <div className="rounded-[22px] border border-primary/8 bg-surface-container-high/90 p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-on-surface-variant">Demo worker</p>
+              <p className="mt-3 font-semibold leading-6 text-on-surface">
+                {worker.name} in {humanizeSlug(result.zone || scenario.zone)}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">{result.expected_path || scenario.outcome}</p>
+            </div>
+          ) : null}
+
           <div className="space-y-3">
             {summaryRows.map((row) => (
               <div key={row.label} className="flex items-center justify-between gap-4 rounded-[20px] border border-primary/8 bg-surface-container-high/80 p-4">
@@ -70,8 +84,8 @@ export default function ScenarioCard({ scenario, running, result, thresholds, on
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-on-surface-variant">Cause and effect</p>
             <div className="mt-4 space-y-3 text-sm leading-7 text-on-surface">
               <p>
-                Scenario changes the simulator inputs for the selected zone. The trigger engine then checks real
-                thresholds and decides whether an incident should be created or extended.
+                RideShield runs a fixed worker story, applies the matching disruption scenario, and then checks the live
+                trigger thresholds before creating or extending an incident.
               </p>
               {firedTriggers.length ? (
                 <p className="font-semibold text-primary">Triggers crossed: {firedTriggers.map(humanizeSlug).join(", ")}</p>

@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.run_scenario import enrich_worker_for_demo
+from backend.core.demo_scenarios import enrich_worker_for_demo
 
 
 async def create_worker_policy(client, admin_cookies, name: str, phone: str, zone: str, income: int, plan_name: str, profile: str):
@@ -117,3 +117,58 @@ async def test_edge_platform_outage_scenario_routes_to_review_or_reject(client, 
     claims = claims_response.json()["claims"]
     assert claims
     assert claims[0]["status"] in {"delayed", "rejected"}
+
+
+@pytest.mark.asyncio
+async def test_demo_scenario_endpoint_runs_deterministic_legit_flow(client, admin_cookies):
+    response = await client.post("/api/triggers/demo-scenario/clean_legit", cookies=admin_cookies)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["demo_scenario"] == "clean_legit"
+    assert payload["city"] == "delhi"
+    assert payload["zone"] == "south_delhi"
+    assert payload["worker"]["name"] == "Rahul Kumar"
+    assert payload["claims_generated"] >= 1
+    assert payload["latest_claim_status"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_lab_run_endpoint_executes_shared_engine_with_seeded_worker(client, admin_cookies):
+    response = await client.post(
+        "/api/triggers/lab-run",
+        json={
+            "city": "delhi",
+            "zones": ["south_delhi"],
+            "signals": {
+                "rain_mm_hr": 42,
+                "temperature_c": 26,
+                "aqi_value": 140,
+                "congestion_index": 0.35,
+                "order_density_drop": 0.15,
+            },
+            "worker": {
+                "seed_demo_worker": True,
+                "profile": "legit",
+                "plan_name": "smart_protect",
+                "platform": "zomato",
+                "self_reported_income": 900,
+                "working_hours": 8,
+            },
+            "execution": {
+                "mode": "single",
+                "runs": 1,
+            },
+            "preset_name": "rain-lab",
+        },
+        cookies=admin_cookies,
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["city"] == "delhi"
+    assert payload["zones"] == ["south_delhi"]
+    assert payload["aggregate"]["runs"] == 1
+    assert len(payload["runs"]) == 1
+    assert payload["runs"][0]["worker"]["profile"] == "legit"
+    assert "warning" in payload

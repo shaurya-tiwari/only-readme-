@@ -174,6 +174,66 @@ What still fails:
 - replay is still too easy relative to baseline on fraud risk
 - scenario traffic is still harsher than baseline in the wrong way
 
+## Realism And `100000`-Run Status
+
+This work existed to solve a specific calibration problem:
+- too many claims were still falling into manual review
+- especially in gray-band and weak-signal overlap cases
+- the live evidence base was too small and too calm to support safe policy relaxation on its own
+
+The goal of the large synthetic population was not:
+- production-scale user simulation for its own sake
+- direct automatic retraining from synthetic rows
+- replacing real or manual-reviewed evidence
+
+The goal was:
+- generate enough governed decision traffic to test policy behavior under pressure
+- identify false-review-heavy rule and surface patterns
+- measure whether policy changes improved automation without unsafe fraud drift
+- block policy promotion unless synthetic behavior stayed close enough to baseline to be directionally trustworthy
+
+What was built for that:
+- decision memory and replay
+- source labeling:
+  - `baseline`
+  - `simulation_pressure`
+  - `scenario`
+  - `replay_amplified`
+- governed experiment runner
+- distribution shaping and source-alignment gates
+- micro-world realism layer:
+  - worker archetypes
+  - behavioral difficulty categories
+  - conflict patterns
+- executable promotion contract checks such as:
+  - `distribution_valid`
+  - `baseline_improves`
+  - `fraud_risk_within_limit`
+  - `source_alignment_valid`
+
+What stage was reached:
+- the architecture for broad synthetic evaluation is now built
+- repeated governed runs at `1000` rows were used as realism checkpoints
+- payout and trust alignment improved materially
+- cluster realism improved materially
+- rule and surface divergence dropped enough to become directionally believable
+
+What did not happen:
+- the system did not reach a trustworthy `100000`-row calibration state
+- the large synthetic population was not accepted as policy-truth evidence
+- the promotion contract correctly continued to block policy change
+
+Why it stopped short:
+- uncertainty still under-emerged from real conflict
+- difficulty distribution still diverged too much from baseline
+- source behavior was still not close enough across all measured dimensions
+- broad synthetic volume still risked teaching the policy engine the wrong behavior for the wrong reasons
+
+Current conclusion:
+- this thread is structurally successful
+- it is directionally useful for experimentation
+- but it is not complete enough to serve as the final truth source for major calibration or policy promotion
+
 ## Current Limitations
 
 - remaining realism gaps are now relational, not structural
@@ -181,7 +241,12 @@ What still fails:
 - behavioral difficulty still diverges too much from baseline
 - large synthetic runs like `100000` are still not trustworthy as calibration evidence
 - this is research-level tuning, not required for demo viability
-- platform telemetry is still simulated and not yet upgraded into a richer provider module
+- platform telemetry is now upgraded into a behavioral provider-style engine:
+  - time-aware baseline demand
+  - zone resilience profiles
+  - bounded deterministic noise
+  - signal-coupled weather/traffic/AQI drag
+  - stable `order_density_drop` trigger contract
 - live shadow diff persistence now exists, but it is still minimal:
   - persisted
   - queryable
@@ -381,7 +446,10 @@ What this means:
 - real-vs-simulated disagreement is now persisted without changing current routing logic
 
 What is still not finished:
-- richer platform telemetry provider work
+- validate and calibrate the new platform telemetry provider against expected:
+  - `order_density_drop` ranges
+  - stressed vs degraded frequency
+  - weather/traffic coupling strength
 - deeper shadow diff productization
 - broader diff-based analytics and trend views
 

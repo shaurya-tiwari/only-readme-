@@ -19,13 +19,13 @@ export default function ClaimStatus({ claim }) {
       <h3 className="mt-4 text-lg font-bold text-primary">Why was this claim {humanizeSlug(claim.status)}?</h3>
       <p className="mt-3 text-sm leading-6 text-on-surface-variant">
         {claim.status === "approved"
-          ? `System payout approved for ${formatCurrency(claim.final_payout || claim.calculated_payout)}.`
+          ? `Your payout was approved for ${formatCurrency(claim.final_payout || claim.calculated_payout)}.`
           : claim.status === "delayed"
             ? "This incident needs manual review before payout can be released."
-            : "This incident was rejected after signal validation and fraud checks."}
+            : "This incident was rejected after the disruption and account checks did not line up clearly enough."}
       </p>
       <p className="mt-3 text-sm leading-6 text-on-surface-variant">
-        {claim.decision_breakdown?.explanation || "The claim outcome reflects disruption strength, trust context, and fraud risk."}
+        {claim.decision_experience?.summary || claim.decision_breakdown?.explanation || "The claim outcome reflects disruption strength, account history, and payment safety checks."}
       </p>
     </div>
   );

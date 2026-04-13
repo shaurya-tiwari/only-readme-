@@ -127,6 +127,14 @@ This revision reflects the current state after:
   - weather
   - AQI
   - traffic
+- the platform signal is now materially stronger:
+  - `PLATFORM_SOURCE=db` is no longer a thin stub
+  - platform telemetry is generated through a behavioral engine with:
+    - time-of-day demand baselines
+    - zone resilience profiles
+    - bounded deterministic noise
+    - recent weather/traffic/AQI coupling
+  - the existing `order_density_drop -> platform_outage` contract remains stable
 - light Wave 7 operational polish now exists:
   - payout lifecycle states
   - failure-safe payout handling
@@ -212,6 +220,7 @@ The following are now true:
 - provider reality is now materially started:
   - weather, AQI, and traffic are no longer mock-only
   - live-vs-mock disagreement can now be persisted for observation
+  - platform telemetry is now provider-shaped and behavior-driven even without partner data
 
 ## Deployed Repo Audit
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, BrainCircuit, Clock3, MapPinned, ShieldAlert, TrendingUp } from "lucide-react";
+import { BrainCircuit, Clock3, TrendingUp } from "lucide-react";
 
 import { analyticsApi } from "../api/analytics";
 import { healthApi } from "../api/health";
@@ -166,11 +166,15 @@ function summarizeSignalReadiness(statusMap) {
 
 export default function IntelligenceOverview() {
   const [loading, setLoading] = useState(true);
+  const [forecastLoading, setForecastLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
-  const [config, setConfig] = useState(null);
+  const [forecast, setForecast] = useState([]);
+  const [signalHealth, setSignalHealth] = useState(null);
+  const [diagnostics, setDiagnostics] = useState(null);
   const [locations, setLocations] = useState(null);
   const [models, setModels] = useState(null);
-  const forecastReadings = useMemo(() => analytics?.next_week_forecast || [], [analytics]);
+  const [loadErrors, setLoadErrors] = useState([]);
+  const forecastReadings = useMemo(() => forecast || [], [forecast]);
   const topForecast = useMemo(
     () => [...forecastReadings].sort((a, b) => Number(b.projected_risk || 0) - Number(a.projected_risk || 0))[0] || null,
     [forecastReadings],
@@ -183,17 +187,47 @@ export default function IntelligenceOverview() {
   useEffect(() => {
     async function load() {
       setLoading(true);
+      const errors = [];
       try {
-        const [analyticsRes, configRes, locationsRes, modelsRes] = await Promise.all([
+        const [analyticsRes, signalHealthRes, diagnosticsRes, citiesRes, modelsRes] = await Promise.allSettled([
           analyticsApi.adminOverview({ days: 14 }),
-          healthApi.getConfig(),
-          locationsApi.config(),
+          healthApi.getSignals(),
+          healthApi.getDiagnostics(),
+          locationsApi.cities(),
           analyticsApi.models(),
         ]);
-        setAnalytics(analyticsRes.data);
-        setConfig(configRes.data);
-        setLocations(locationsRes.data);
-        setModels(modelsRes.data.models);
+
+        if (analyticsRes.status === "fulfilled") {
+          setAnalytics(analyticsRes.value.data);
+        } else {
+          errors.push("Analytics overview");
+        }
+
+        if (signalHealthRes.status === "fulfilled") {
+          setSignalHealth(signalHealthRes.value.data);
+        } else {
+          errors.push("Signal health");
+        }
+
+        if (diagnosticsRes.status === "fulfilled") {
+          setDiagnostics(diagnosticsRes.value.data);
+        } else {
+          errors.push("Diagnostics");
+        }
+
+        if (citiesRes.status === "fulfilled") {
+          setLocations({ cities: citiesRes.value.data || [] });
+        } else {
+          errors.push("Locations");
+        }
+
+        if (modelsRes.status === "fulfilled") {
+          setModels(modelsRes.value.data.models);
+        } else {
+          errors.push("Models");
+        }
+
+        setLoadErrors(errors);
       } finally {
         setLoading(false);
       }
@@ -202,11 +236,27 @@ export default function IntelligenceOverview() {
     load();
   }, []);
 
+  useEffect(() => {
+    async function loadForecast() {
+      setForecastLoading(true);
+      try {
+        const forecastRes = await analyticsApi.adminForecast();
+        setForecast(forecastRes.data.next_week_forecast || []);
+      } catch {
+        setForecast([]);
+      } finally {
+        setForecastLoading(false);
+      }
+    }
+
+    void loadForecast();
+  }, []);
+
   if (loading) {
     return <div className="panel p-8 text-center text-on-surface-variant">Loading intelligence overview...</div>;
   }
 
-  const scheduler = config?.scheduler;
+  const scheduler = diagnostics?.scheduler;
   const lossRatio = interpretLossRatio(analytics?.loss_ratio);
   const fraudMeaning = interpretFraudRate(analytics?.fraud_rate);
   const citiesMonitored = (locations?.cities || []).length;
@@ -219,60 +269,41 @@ export default function IntelligenceOverview() {
   const dominantPatterns = falseReviewSummary?.dominant_patterns || [];
   const topFalseReviewDrivers = decisionMemory?.top_false_review_drivers || [];
   const trafficSourceCounts = decisionMemory?.traffic_source_counts || {};
-  const signalSourceStatus = config?.signal_source_status || {};
+  const signalSourceStatus = signalHealth?.signal_source_status || {};
   const signalReadiness = summarizeSignalReadiness(signalSourceStatus);
 
   return (
     <div className="space-y-10">
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="hero-glow hero-mesh rounded-[36px] p-8 sm:p-10 fade-in-up">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/80 backdrop-blur-sm">
-            <BrainCircuit size={13} />
-            <span>System intelligence</span>
-          </div>
-          <h1 className="mt-6 max-w-4xl text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
-            What changed, what is noisy, and what should be trusted next.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-white/78 sm:text-lg">
-            This page is the reading layer for operators and builders. It should show where the system is over-reviewing,
-            which city is drifting toward pressure, and whether current policy changes are improving automation.
+      {loadErrors.length > 0 && (
+        <div className="rounded-[20px] border border-amber-400/30 bg-amber-500/10 px-5 py-4">
+          <p className="text-sm font-semibold text-amber-300">Some sections failed to load</p>
+          <p className="mt-1 text-sm text-amber-200/80">
+            Unavailable: {loadErrors.join(", ")}. The rest of the page is showing live data.
           </p>
         </div>
-
-        <div className="space-y-4">
-          <div className="panel p-6 pulse-glow">
-            <p className="eyebrow">Scheduler state</p>
-            <p className="mt-3 text-2xl font-bold text-primary">
-              {scheduler?.enabled ? "Monitoring active" : "Monitoring disabled"}
-            </p>
-            <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-              Interval {scheduler?.interval_seconds || "--"}s - last finished{" "}
-              {scheduler?.last_finished_at ? formatDateTime(scheduler.last_finished_at) : "--"} - next scheduled{" "}
-              {scheduler?.next_scheduled_at ? formatDateTime(scheduler.next_scheduled_at) : "--"}
-            </p>
-          </div>
-          <div className="panel-quiet p-6">
-            <p className="text-sm text-on-surface-variant">Primary interpretation</p>
-            <p className="mt-2 text-lg font-semibold text-primary">
-              {topForecast
-                ? `${humanizeSlug(topForecast.city)} is the highest near-term pressure city.`
-                : "No forecast lead city available right now."}
-            </p>
-            <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-              {topForecast
-                ? `Projected risk is ${topForecast.projected_risk.toFixed(2)} with ${topForecast.active_incidents} active incident(s) already in the system.`
-                : "Wait for new forecast data to identify the next operational hotspot."}
-            </p>
-          </div>
-          <div className="panel-quiet p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-on-surface-variant">Signal readiness</p>
-                <p className="mt-2 text-lg font-semibold text-primary">{signalReadiness.label}</p>
-              </div>
-              <span className={`pill ${signalReadiness.tone}`}>{signalReadiness.label}</span>
+      )}
+      <section className="mb-6">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <BrainCircuit size={18} className="text-primary" />
+              <p className="eyebrow">System intelligence</p>
             </div>
-            <p className="mt-3 text-sm leading-7 text-on-surface-variant">{signalReadiness.message}</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-primary">What changed, what is noisy, and what should be trusted next.</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-on-surface-variant">
+              Reading layer for operators. Shows where the system is over-reviewing, which city is drifting toward pressure, and whether current policy changes are improving automation.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`pill ${scheduler?.enabled ? 'badge-active' : 'badge-pending'}`}>
+              {scheduler?.enabled ? 'Scheduler active' : 'Scheduler disabled'}
+            </span>
+            <span className={`pill ${signalReadiness.tone}`}>{signalReadiness.label}</span>
+            {topForecast ? (
+              <span className="pill badge-guarded">
+                Lead city: {humanizeSlug(topForecast.city)} ({topForecast.projected_risk.toFixed(2)} risk)
+              </span>
+            ) : null}
           </div>
         </div>
       </section>
@@ -373,13 +404,15 @@ export default function IntelligenceOverview() {
         </div>
 
         <div className="mt-6 grid grid-cols-12 gap-6">
-          <div className="col-span-12 context-panel p-6 lg:col-span-7">
+          <div className="col-span-12 context-panel p-6">
             <div className="mb-4 flex items-center gap-3">
               <TrendingUp size={18} className="text-primary" />
               <h3 className="text-lg font-bold text-primary">Forecast bands</h3>
             </div>
             <div className="space-y-3">
-              {forecastReadings.map((entry) => {
+              {forecastLoading ? (
+                <p className="text-sm text-on-surface-variant">Loading forecast horizon...</p>
+              ) : forecastReadings.map((entry) => {
                 const tone = bandTone(entry.band);
 
                 return (
@@ -400,18 +433,6 @@ export default function IntelligenceOverview() {
             </div>
           </div>
 
-          <div className="col-span-12 context-panel p-6 lg:col-span-5">
-            <div className="mb-4 flex items-center gap-3">
-              <Clock3 size={18} className="text-primary" />
-              <h3 className="text-lg font-bold text-primary">Interpretation notes</h3>
-            </div>
-            <div className="space-y-4 text-sm leading-7 text-on-surface-variant">
-              <p>Trigger evaluation remains threshold-based and intentionally explainable.</p>
-              <p>Claims stay incident-based, so overlapping same-window signals do not multiply payouts for one worker.</p>
-              <p>Location awareness is DB-backed, which keeps monitoring, claim logic, and analytics tied to the same geography source of truth.</p>
-              <p>False-review and replay numbers are calibration signals, not raw fraud labels.</p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -702,49 +723,7 @@ export default function IntelligenceOverview() {
         </div>
       </section>
 
-      <section>
-        <SectionHeader
-          eyebrow="System reading"
-          title="What the engine is reasoning over"
-          description="Use these blocks to understand the scope of the system, not to restate the product pitch."
-        />
-        <div className="grid grid-cols-12 gap-5">
-          {[
-            {
-              icon: Activity,
-              title: "Trigger signals",
-              body: "Rain, heat, AQI, traffic, platform outage, and social signals are checked against zone thresholds before an incident is created.",
-              span: "col-span-12 md:col-span-6",
-            },
-            {
-              icon: MapPinned,
-              title: "Zone awareness",
-              body: "Cities and zones are DB-backed so monitoring, eligibility, and forecasting all reference the same geography truth.",
-              span: "col-span-12 md:col-span-6",
-            },
-            {
-              icon: ShieldAlert,
-              title: "Fraud and trust",
-              body: "Fraud score, trust score, and decision memory are used together so the system can reduce false reviews instead of only adding more caution.",
-              span: "col-span-12 lg:col-span-6",
-            },
-            {
-              icon: BrainCircuit,
-              title: "Decision routing",
-              body: "Each worker receives one claim per incident window, with approval, delay, or rejection exposed as a readable path rather than a black box.",
-              span: "col-span-12 lg:col-span-6",
-            },
-          ].map(({ icon: Icon, title, body, span }) => (
-            <div key={title} className={`${span} group card-elevated context-panel p-8 transition-smooth hover:bg-surface-container`}>
-              <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-surface-container-low text-primary transition-smooth group-hover:scale-110 group-hover:bg-primary/10">
-                <Icon size={26} />
-              </div>
-              <h3 className="mt-6 text-xl font-bold leading-tight text-primary">{title}</h3>
-              <p className="mt-4 text-sm leading-7 text-on-surface-variant">{body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+
     </div>
   );
 }

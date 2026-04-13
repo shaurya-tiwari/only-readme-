@@ -455,7 +455,7 @@ async def test_admin_overview_requires_admin_token(client):
 
 
 @pytest.mark.asyncio
-async def test_admin_overview_returns_scheduler_and_forecast(client):
+async def test_admin_overview_returns_scheduler_without_forecast(client):
     login_response = await client.post(
         "/api/auth/admin/login",
         json={"username": "admin", "password": "rideshield-test-admin-password"},
@@ -481,8 +481,23 @@ async def test_admin_overview_returns_scheduler_and_forecast(client):
     assert "drivers" in data["review_driver_summary"]
     assert "source" in data["review_driver_summary"]
     assert "insights" in data["review_driver_summary"]
-    assert "next_week_forecast" in data
-    assert isinstance(data["next_week_forecast"], list)
+    assert "next_week_forecast" not in data
+
+
+@pytest.mark.asyncio
+async def test_admin_forecast_and_overview_alias_work(client, admin_cookies):
+    forecast_response = await client.get("/api/analytics/admin-forecast", cookies=admin_cookies)
+    assert forecast_response.status_code == 200
+    forecast_data = forecast_response.json()
+    assert "ttl_seconds" in forecast_data
+    assert "next_week_forecast" in forecast_data
+    assert isinstance(forecast_data["next_week_forecast"], list)
+
+    alias_response = await client.get("/api/analytics/overview", cookies=admin_cookies)
+    assert alias_response.status_code == 200
+    alias_data = alias_response.json()
+    assert "scheduler" in alias_data
+    assert "decision_health" in alias_data
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,9 @@ This file is the repo-local contract map for the current implementation on `main
 ### Health
 - `GET /health`
 - `GET /health/db`
+- `GET /config/runtime`
+- `GET /health/signals`
+- `GET /health/diagnostics`
 - `GET /health/config`
 
 ### Auth
@@ -41,6 +44,8 @@ This file is the repo-local contract map for the current implementation on `main
 - `POST /api/triggers/check`
 - `GET /api/triggers/status`
 - `POST /api/triggers/scenario/{scenario}`
+- `POST /api/triggers/demo-scenario/{scenario_id}`
+- `POST /api/triggers/lab-run`
 - `POST /api/triggers/reset`
 
 ### Events
@@ -63,6 +68,8 @@ This file is the repo-local contract map for the current implementation on `main
 
 ### Analytics
 - `GET /api/analytics/admin-overview`
+- `GET /api/analytics/admin-forecast`
+- `GET /api/analytics/overview`
 - `GET /api/analytics/forecast`
 - `GET /api/analytics/zone-risk`
 - `GET /api/analytics/models`
@@ -97,9 +104,11 @@ Worker sessions are restricted to their own records. Admin sessions retain overs
 - `GET /api/claims/stats`
 - `GET /api/payouts/stats`
 - `GET /api/analytics/admin-overview`
-- `GET /api/analytics/forecast`
+- `GET /api/analytics/admin-forecast`
+- `GET /api/analytics/overview`
 - `GET /api/analytics/zone-risk`
 - `GET /api/analytics/models`
+- `POST /api/triggers/lab-run`
 
 ## Important Contract Notes
 
@@ -139,13 +148,36 @@ Worker sessions are restricted to their own records. Admin sessions retain overs
   - policy and payout KPIs
   - duplicate claim audit visibility
   - scheduler state
-  - `next_week_forecast`
+- `admin-overview` no longer carries `next_week_forecast` inline.
+- `admin-forecast` is the forecast-only payload and is cached for `300s`.
+- `overview` is a compatibility alias to `admin-overview`.
 - `forecast` supports city-level and zone-level reads.
 - `zone-risk` is city-scoped.
 - `models` returns runtime status for:
   - risk model
   - fraud model
   - forecast engine
+
+### Health and runtime diagnostics
+- `/health` is the fast liveness route.
+- `/health/db` is the database connectivity route.
+- `/config/runtime` returns stable runtime configuration:
+  - cities
+  - zone map
+  - thresholds
+  - plans
+- `/health/signals` returns signal-provider source/freshness status.
+- `/health/diagnostics` returns scheduler and shadow-diff internals.
+- `/health/config` remains as a compatibility aggregate and now includes timing breakdowns:
+  - `runtime`
+  - `signals`
+  - `diagnostics`
+
+### Demo and lab execution
+- `demo-scenario/{scenario_id}` is the deterministic product-story path used by the locked DemoRunner.
+- `lab-run` is the exploratory Scenario Lab path.
+- Both reuse the shared trigger/claim engine.
+- Scenario Lab currently writes simulation-only local records in the working environment and should not be treated as production telemetry.
 
 ## Current ML Truth
 

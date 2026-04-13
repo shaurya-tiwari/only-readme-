@@ -1,8 +1,8 @@
 # RideShield Architecture Reference
 
-This is the repo-local architecture note for the current stable Phase 2 system.
+This is the repo-local architecture note for the current working-repo system.
 
-It focuses on what is implemented now, not on future expansion work.
+It focuses on what is implemented now.
 
 ## Current Architecture Shape
 
@@ -10,7 +10,7 @@ RideShield is a layered web application with:
 - a React frontend
 - a FastAPI backend
 - PostgreSQL persistence
-- mock disruption inputs
+- mixed real and simulated disruption inputs
 - real incident, claim, review, and payout orchestration inside the app
 
 The key product rule is unchanged:
@@ -19,15 +19,22 @@ The key product rule is unchanged:
 
 ## Stable Runtime Boundary
 
-### Mock signal layer
+### Signal layer
 
-Phase 2 uses simulated inputs for:
+Current provider posture:
 - weather
+  - real via OpenWeather with safe fallback
 - AQI
+  - real via OpenWeather with safe fallback
 - traffic
+  - real via TomTom with safe fallback
 - platform disruption
+  - behavioral provider-style telemetry engine
 
-These inputs are mock-based by design for the current demo and judging flow.
+Signal runtime support also includes:
+- snapshot persistence
+- source/freshness visibility
+- observational shadow diff persistence for weather/AQI/traffic
 
 ### Real product core
 
@@ -40,6 +47,8 @@ The core runtime remains real within the application:
 - payout routing
 - admin review flow
 - scheduler-driven monitoring
+- deterministic demo-story execution
+- exploratory Scenario Lab execution through the same trigger/claim engine
 
 ## Backend Layers
 
@@ -86,7 +95,7 @@ The database stores:
 ## End-To-End Flow
 
 ```text
-Mock signals -> trigger engine -> zone incident
+Provider signals -> trigger engine -> zone incident
 -> eligible workers filtered
 -> fraud + trust + payout-aware decisioning
 -> approve / review / reject
@@ -158,12 +167,14 @@ Current major surfaces:
 - `Dashboard.jsx`
 - `AdminPanel.jsx`
 - `DemoRunner.jsx`
+- `ScenarioLab.jsx`
 - `IntelligenceOverview.jsx`
 
 Functional split:
 - worker dashboard = worker-facing claims and policy view
 - admin panel = operational decision and oversight surface
-- demo runner = controlled scenario and cause-and-effect surface
+- demo runner = locked deterministic storytelling surface
+- scenario lab = exploratory simulation and batch-testing surface
 - intelligence page = system interpretation and model context surface
 
 ## Geography And Auth
@@ -194,6 +205,11 @@ Current auth shape:
 Current local observability includes:
 - runtime diagnostics during development
 - scheduler state in health and admin analytics
+- split runtime endpoints:
+  - `/config/runtime`
+  - `/health/signals`
+  - `/health/diagnostics`
+- compatibility timing breakdowns on `/health/config`
 
 These logs are local diagnostics for:
 - trigger cadence
@@ -202,15 +218,19 @@ These logs are local diagnostics for:
 - claim volume
 - payout totals
 
-## Phase 2 Boundaries
+## Current Boundaries
 
-This architecture note describes the stable mock-based Phase 2 system only.
-
-It does not claim:
-- real provider integration
-- automated model learning
+This architecture note does not claim:
 - production payout rail integration
-- future expansion work documented separately in the roadmap
+- partner-native platform telemetry
+- production-safe isolation for Scenario Lab generated records
+
+It does claim the current working repo now includes:
+- real weather/AQI/traffic providers with safe fallback
+- behavioral platform telemetry
+- deterministic DemoRunner stories
+- exploratory Scenario Lab
+- decomposed analytics and health/runtime surfaces
 
 ## Related Docs
 

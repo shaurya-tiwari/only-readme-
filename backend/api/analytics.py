@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -20,11 +21,63 @@ from backend.db.models import AuditLog, Claim, DecisionLog, Event, Payout, Polic
 from backend.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+_ADMIN_FORECAST_CACHE: dict[str, Any] = {
+    "expires_at": None,
+    "payload": None,
+}
 
 
 async def _forecast_city_snapshot(city: str, horizon_hours: int) -> dict:
     async with async_session_factory() as forecast_db:
         return await forecast_engine.forecast_city(forecast_db, city, horizon_hours=horizon_hours)
+
+
+async def _build_admin_forecast_payload() -> list[dict[str, Any]]:
+    async with async_session_factory() as db:
+        active_events_by_city = (
+            await db.execute(
+                select(Event.city, func.count(Event.id))
+                .where(Event.status == "active")
+                .group_by(Event.city)
+            )
+        ).all()
+    active_city_counts = {city: count for city, count in active_events_by_city}
+
+    cities = list(settings.CITY_RISK_PROFILES.keys())
+    city_forecasts = await asyncio.gather(*[_forecast_city_snapshot(city, 168) for city in cities])
+
+    forecast: list[dict[str, Any]] = []
+    for city, city_forecast in zip(cities, city_forecasts):
+        base = float(settings.CITY_RISK_PROFILES[city]["base_risk"])
+        city_score = round(
+            sum(zone["projected_risk"] for zone in city_forecast["zones"]) / max(1, len(city_forecast["zones"])),
+            3,
+        )
+        forecast.append(
+            {
+                "city": city,
+                "base_risk": base,
+                "active_incidents": active_city_counts.get(city, 0),
+                "projected_risk": city_score,
+                "band": forecast_band(city_score),
+                "top_zone": city_forecast["zones"][0]["zone"] if city_forecast["zones"] else None,
+                "model_version": city_forecast["zones"][0]["model_version"] if city_forecast["zones"] else "rule-based",
+            }
+        )
+    return forecast
+
+
+async def _get_cached_admin_forecast(*, ttl_seconds: int = 300) -> list[dict[str, Any]]:
+    now = utc_now_naive()
+    expires_at = _ADMIN_FORECAST_CACHE["expires_at"]
+    cached_payload = _ADMIN_FORECAST_CACHE["payload"]
+    if expires_at is not None and cached_payload is not None and expires_at > now:
+        return cached_payload
+
+    payload = await _build_admin_forecast_payload()
+    _ADMIN_FORECAST_CACHE["payload"] = payload
+    _ADMIN_FORECAST_CACHE["expires_at"] = now + timedelta(seconds=ttl_seconds)
+    return payload
 
 
 def forecast_band(score: float) -> str:
@@ -736,37 +789,6 @@ async def get_admin_overview(
         for log in recent_duplicate_logs
     ]
 
-    active_events_by_city = (
-        await db.execute(
-            select(Event.city, func.count(Event.id))
-            .where(Event.status == "active")
-            .group_by(Event.city)
-        )
-    ).all()
-    active_city_counts = {city: count for city, count in active_events_by_city}
-
-    cities = list(settings.CITY_RISK_PROFILES.keys())
-    city_forecasts = await asyncio.gather(*[_forecast_city_snapshot(city, 168) for city in cities])
-
-    forecast = []
-    for city, city_forecast in zip(cities, city_forecasts):
-        base = float(settings.CITY_RISK_PROFILES[city]["base_risk"])
-        city_score = round(
-            sum(zone["projected_risk"] for zone in city_forecast["zones"]) / max(1, len(city_forecast["zones"])),
-            3,
-        )
-        forecast.append(
-            {
-                "city": city,
-                "base_risk": base,
-                "active_incidents": active_city_counts.get(city, 0),
-                "projected_risk": city_score,
-                "band": forecast_band(city_score),
-                "top_zone": city_forecast["zones"][0]["zone"] if city_forecast["zones"] else None,
-                "model_version": city_forecast["zones"][0]["model_version"] if city_forecast["zones"] else "rule-based",
-            }
-        )
-
     return {
         "period_days": days,
         "active_policies_total": len(active_policy_rows),
@@ -793,6 +815,25 @@ async def get_admin_overview(
         "policy_health_summary": _build_policy_health_summary(decision_logs),
         "source_comparison_summary": _build_source_comparison_summary(decision_logs),
         "review_driver_summary": _build_review_driver_summary(recent_review_claims, delayed_queue_claims, recent_window_hours=1),
+    }
+
+
+@router.get("/overview")
+async def get_admin_overview_alias(
+    days: int = 14,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin_session),
+):
+    return await get_admin_overview(days=days, db=db, _=_)
+
+
+@router.get("/admin-forecast")
+async def get_admin_forecast(
+    _: dict = Depends(require_admin_session),
+):
+    forecast = await _get_cached_admin_forecast(ttl_seconds=300)
+    return {
+        "ttl_seconds": 300,
         "next_week_forecast": forecast,
     }
 

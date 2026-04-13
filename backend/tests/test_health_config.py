@@ -15,6 +15,33 @@ async def test_health_config_exposes_signal_sources(client):
     assert payload["provider_snapshot_persistence_enabled"] is True
     assert payload["signal_runtime"]["snapshots"]["retention_days"] == 14
     assert payload["shadow_diff_summary"]["total_diffs"] == 0
+    assert "timings_ms" in payload
+    assert set(payload["timings_ms"].keys()) == {"runtime", "signals", "diagnostics"}
+
+
+@pytest.mark.asyncio
+async def test_health_split_endpoints_expose_runtime_signal_and_diagnostics_payloads(client):
+    runtime_response = await client.get("/config/runtime")
+    signals_response = await client.get("/health/signals")
+    diagnostics_response = await client.get("/health/diagnostics")
+
+    assert runtime_response.status_code == 200
+    assert signals_response.status_code == 200
+    assert diagnostics_response.status_code == 200
+
+    runtime_payload = runtime_response.json()
+    signals_payload = signals_response.json()
+    diagnostics_payload = diagnostics_response.json()
+
+    assert "available_cities" in runtime_payload
+    assert "city_zone_map" in runtime_payload
+    assert "signal_sources" in signals_payload
+    assert "signal_source_status" in signals_payload
+    assert "scheduler" in diagnostics_payload
+    assert "shadow_diff_summary" in diagnostics_payload
+    assert "response_ms" in runtime_payload
+    assert "response_ms" in signals_payload
+    assert "response_ms" in diagnostics_payload
 
 
 @pytest.mark.asyncio

@@ -44,6 +44,19 @@ def serialize_event(event: Event, claims_count: int, include_metadata: bool = Fa
     return payload
 
 
+async def _claim_counts_by_event(db: AsyncSession, event_ids: list[UUID]) -> dict[UUID, int]:
+    if not event_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(Claim.event_id, func.count(Claim.id))
+            .where(Claim.event_id.in_(event_ids))
+            .group_by(Claim.event_id)
+        )
+    ).all()
+    return {event_id: count for event_id, count in rows}
+
+
 @router.get("/active")
 async def get_active_events(city: Optional[str] = None, zone: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     query = select(Event).where(Event.status == "active")
@@ -52,9 +65,10 @@ async def get_active_events(city: Optional[str] = None, zone: Optional[str] = No
     if zone:
         query = query.where(Event.zone == zone.lower())
     events = (await db.execute(query.order_by(desc(Event.started_at)))).scalars().all()
+    claim_counts = await _claim_counts_by_event(db, [event.id for event in events])
     event_list = []
     for event in events:
-        claims_count = (await db.execute(select(func.count(Claim.id)).where(Claim.event_id == event.id))).scalar() or 0
+        claims_count = claim_counts.get(event.id, 0)
         event_list.append(serialize_event(event, claims_count))
     return {"total": len(event_list), "active_count": len(event_list), "events": event_list}
 
@@ -83,9 +97,10 @@ async def get_event_history(
         count_query = count_query.where(Event.zone == zone.lower())
     total = (await db.execute(count_query)).scalar()
 
+    claim_counts = await _claim_counts_by_event(db, [event.id for event in events])
     event_list = []
     for event in events:
-        claims_count = (await db.execute(select(func.count(Claim.id)).where(Claim.event_id == event.id))).scalar() or 0
+        claims_count = claim_counts.get(event.id, 0)
         event_list.append(serialize_event(event, claims_count, include_metadata=True))
 
     return {"total": total, "period_days": days, "events": event_list}
@@ -134,9 +149,10 @@ async def get_zone_events(
         query = query.where(Event.status == "active")
 
     events = (await db.execute(query.order_by(desc(Event.started_at)).limit(50))).scalars().all()
+    claim_counts = await _claim_counts_by_event(db, [event.id for event in events])
     event_list = []
     for event in events:
-        claims_count = (await db.execute(select(func.count(Claim.id)).where(Claim.event_id == event.id))).scalar() or 0
+        claims_count = claim_counts.get(event.id, 0)
         event_list.append(serialize_event(event, claims_count))
 
     return {

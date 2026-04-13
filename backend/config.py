@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
     ML_ENABLED: bool = True
     ML_ARTIFACT_DIR: str = "backend/ml/artifacts"
+    RISK_ML_ARTIFACT_DIR: str | None = "backend/ml/artifacts_v2"
+    FRAUD_ML_ARTIFACT_DIR: str | None = "backend/ml/artifacts"
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://rideshield:rideshield123@localhost:5433/rideshield_db"
@@ -40,7 +42,10 @@ class Settings(BaseSettings):
     # Simulation
     SIMULATION_MODE: bool = True
     ENABLE_TRIGGER_SCHEDULER: bool = True
+    SCHEDULER_IN_PROCESS: bool = False
+    SCHEDULER_FETCH_CONCURRENCY: int = 6
     TRIGGER_CHECK_INTERVAL_SECONDS: int = 300
+    TRAFFIC_DAILY_REQUEST_BUDGET: int = 2400
     SIGNAL_SOURCE_MODE: str = "mock"
     WEATHER_SOURCE: str = "mock"
     AQI_SOURCE: str = "mock"
@@ -200,6 +205,7 @@ class Settings(BaseSettings):
         "DECISION_LOW_PAYOUT_THRESHOLD",
         "DECISION_HIGH_PAYOUT_THRESHOLD",
         "DECISION_REASON_LIMIT",
+        "TRAFFIC_DAILY_REQUEST_BUDGET",
         mode="before",
     )
     @classmethod

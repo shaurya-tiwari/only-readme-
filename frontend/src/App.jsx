@@ -15,6 +15,7 @@ const IntelligenceOverview = lazy(() => import("./pages/IntelligenceOverview"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const DemoRunner = lazy(() => import("./pages/DemoRunner"));
+const ScenarioLab = lazy(() => import("./pages/ScenarioLab"));
 
 function RedirectIfAuth({ children }) {
   const { booting, isAuthenticated, role } = useAuth();
@@ -121,6 +122,17 @@ function AppShell() {
               <ProtectedRoute role="admin">
                 <AppFrame>
                   <DemoRunner />
+                </AppFrame>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/lab"
+            element={
+              <ProtectedRoute role="admin">
+                <AppFrame>
+                  <ScenarioLab />
                 </AppFrame>
               </ProtectedRoute>
             }

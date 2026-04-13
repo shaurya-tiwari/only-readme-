@@ -156,13 +156,15 @@ class FraudDetector:
                         WorkerActivity.recorded_at >= lookback,
                         WorkerActivity.recorded_at <= event.started_at,
                     )
-                )
+                ).order_by(WorkerActivity.recorded_at)
             )
         ).scalars().all()
         if not activities:
             return (0.0, 0)
         speeds = [float(activity.speed_kmh or 0) for activity in activities]
         score = 0.0
+
+        # Existing checks
         if len(speeds) > 1 and max(speeds) - min(speeds) < 3:
             score += 0.3
         if not any(activity.has_delivery_stop for activity in activities):
@@ -171,7 +173,50 @@ class FraudDetector:
             score += 0.25
         if event.zone not in {activity.zone for activity in activities}:
             score += 0.2
+
+        # Enhanced: velocity-between-pings (haversine distance / time)
+        max_implied_velocity = 0.0
+        for i in range(1, len(activities)):
+            prev, curr = activities[i - 1], activities[i]
+            if prev.latitude and prev.longitude and curr.latitude and curr.longitude:
+                dist_km = self._haversine_km(
+                    float(prev.latitude), float(prev.longitude),
+                    float(curr.latitude), float(curr.longitude),
+                )
+                dt_seconds = (curr.recorded_at - prev.recorded_at).total_seconds()
+                if dt_seconds > 0:
+                    velocity_kmh = (dist_km / dt_seconds) * 3600
+                    max_implied_velocity = max(max_implied_velocity, velocity_kmh)
+
+        if max_implied_velocity > 500:
+            score += 0.8  # Teleportation-class anomaly
+        elif max_implied_velocity > 150:
+            score += 0.5  # Impossible ground velocity
+
+        # Enhanced: static coordinate detection
+        if len(activities) >= 3:
+            lats = [float(a.latitude) for a in activities if a.latitude is not None]
+            lons = [float(a.longitude) for a in activities if a.longitude is not None]
+            if lats and lons:
+                lat_spread = max(lats) - min(lats)
+                lon_spread = max(lons) - min(lons)
+                has_delivery_claims = any(a.has_delivery_stop for a in activities)
+                # All coords within 0.00005° AND claiming deliveries = static spoof
+                if lat_spread < 0.00005 and lon_spread < 0.00005 and has_delivery_claims:
+                    score += 0.6
+
         return (min(1.0, score), len(activities))
+
+    @staticmethod
+    def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Great-circle distance between two points in kilometers."""
+        import math
+        R = 6371.0
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     def _check_device(self, worker: Worker) -> tuple[float, int]:
         score = 0.0

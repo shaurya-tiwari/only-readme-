@@ -8,6 +8,9 @@ describe("ScenarioCard", () => {
     title: "Heavy Rain",
     summary: "Legitimate weather disruption for covered workers.",
     outcome: "Expected to auto-approve legitimate claims and execute payouts.",
+    city: "delhi",
+    zone: "south_delhi",
+    setup: "Fixed worker profile for demo validation.",
   };
 
   it("renders scenario results with strong contrast surfaces instead of pale inset panels", () => {

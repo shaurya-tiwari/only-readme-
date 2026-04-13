@@ -1,6 +1,7 @@
 """Background scheduler for periodic trigger checks."""
 
 import asyncio
+import math
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -26,6 +27,7 @@ class TriggerScheduler:
             "enabled": settings.ENABLE_TRIGGER_SCHEDULER,
             "running": False,
             "interval_seconds": settings.TRIGGER_CHECK_INTERVAL_SECONDS,
+            "configured_interval_seconds": settings.TRIGGER_CHECK_INTERVAL_SECONDS,
             "run_count": 0,
             "last_started_at": None,
             "last_finished_at": None,
@@ -34,12 +36,28 @@ class TriggerScheduler:
             "last_error": None,
         }
 
+    def _budgeted_interval_seconds(self, zone_count: int) -> int:
+        configured = settings.TRIGGER_CHECK_INTERVAL_SECONDS
+        traffic_real = settings.TRAFFIC_SOURCE == "real" and bool(settings.TOMTOM_API_KEY)
+        if not traffic_real or zone_count <= 0:
+            return configured
+
+        budget = max(1, settings.TRAFFIC_DAILY_REQUEST_BUDGET)
+        min_interval = math.ceil((86400 * zone_count) / budget)
+        return max(configured, min_interval)
+
+    def _flatten_zone_count(self, city_zone_pairs: list[tuple[str, list[str]]]) -> int:
+        return sum(len(zones) for _, zones in city_zone_pairs)
+
     async def start(self):
         if not settings.ENABLE_TRIGGER_SCHEDULER or self._task:
             return
         self._stop.clear()
         self._task = asyncio.create_task(self._loop(), name="rideshield-trigger-scheduler")
-        logger.info("Trigger scheduler started with interval=%ss", settings.TRIGGER_CHECK_INTERVAL_SECONDS)
+        logger.info(
+            "Trigger scheduler started with configured_interval=%ss",
+            settings.TRIGGER_CHECK_INTERVAL_SECONDS,
+        )
 
     async def stop(self):
         self._stop.set()
@@ -79,6 +97,19 @@ class TriggerScheduler:
                             (city, profile.get("zones", []))
                             for city, profile in settings.CITY_RISK_PROFILES.items()
                         ]
+
+                    zone_count = self._flatten_zone_count(city_zone_pairs)
+                    effective_interval = self._budgeted_interval_seconds(zone_count)
+                    self.state["configured_interval_seconds"] = settings.TRIGGER_CHECK_INTERVAL_SECONDS
+                    self.state["interval_seconds"] = effective_interval
+                    logger.info(
+                        "scheduler_interval_resolved configured=%ss effective=%ss zones=%s traffic_source=%s daily_budget=%s",
+                        settings.TRIGGER_CHECK_INTERVAL_SECONDS,
+                        effective_interval,
+                        zone_count,
+                        settings.TRAFFIC_SOURCE,
+                        settings.TRAFFIC_DAILY_REQUEST_BUDGET,
+                    )
 
                     for city, zones in city_zone_pairs:
                         if not zones:
@@ -131,15 +162,17 @@ class TriggerScheduler:
     async def _loop(self):
         try:
             while not self._stop.is_set():
+                interval_seconds = settings.TRIGGER_CHECK_INTERVAL_SECONDS
                 try:
                     await self.run_once()
                 except Exception:
                     logger.exception("Trigger scheduler loop iteration failed")
+                interval_seconds = self.state.get("interval_seconds") or settings.TRIGGER_CHECK_INTERVAL_SECONDS
                 self.state["next_scheduled_at"] = (
-                    datetime.now(timezone.utc) + timedelta(seconds=settings.TRIGGER_CHECK_INTERVAL_SECONDS)
+                    datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)
                 ).isoformat()
                 try:
-                    await asyncio.wait_for(self._stop.wait(), timeout=settings.TRIGGER_CHECK_INTERVAL_SECONDS)
+                    await asyncio.wait_for(self._stop.wait(), timeout=interval_seconds)
                 except asyncio.TimeoutError:
                     continue
         except asyncio.CancelledError:

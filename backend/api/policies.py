@@ -298,6 +298,7 @@ async def get_active_policy(
         "has_active_policy": policy is not None,
         "active_policy": None,
         "pending_policy": None,
+        "last_expired_policy": None,
     }
 
     if policy:
@@ -324,6 +325,26 @@ async def get_active_policy(
                 0, (pending.activates_at - now).total_seconds() / 3600
             ),
         }
+
+    if not policy and not pending:
+        expired_result = await db.execute(
+            select(Policy).where(
+                and_(
+                    Policy.worker_id == worker_id,
+                    Policy.status == "expired",
+                )
+            ).order_by(Policy.expires_at.desc()).limit(1)
+        )
+        last_expired = expired_result.scalar_one_or_none()
+        if last_expired:
+            response["last_expired_policy"] = {
+                "id": str(last_expired.id),
+                "plan_name": last_expired.plan_name,
+                "display_name": last_expired.plan_display_name,
+                "weekly_premium": float(last_expired.weekly_premium),
+                "coverage_cap": float(last_expired.coverage_cap),
+                "expired_at": last_expired.expires_at.isoformat(),
+            }
 
     return response
 

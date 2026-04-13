@@ -1,6 +1,7 @@
 import pytest
 
 from backend.providers.aqi import RealAQIProvider
+from backend.providers.platform import DatabasePlatformProvider
 from backend.providers.traffic import RealTrafficProvider
 from backend.providers.weather import RealWeatherProvider
 
@@ -144,4 +145,56 @@ async def test_real_traffic_provider_falls_back_to_mock_when_fetch_fails(monkeyp
     assert result.provider == "tomtom_fallback"
     assert result.is_fallback is True
     assert result.raw_payload["fallback_source"] == "traffic_simulator"
+    assert "fallback_reason" in result.raw_payload
+
+
+@pytest.mark.asyncio
+async def test_database_platform_provider_returns_behavioral_telemetry(monkeypatch):
+    provider = DatabasePlatformProvider()
+
+    async def fake_build(db, zone: str, city: str, captured_at):
+        return {
+            "zone": zone,
+            "city": city,
+            "timestamp": captured_at.isoformat(),
+            "orders_per_hour": 78,
+            "normal_avg_orders": 122,
+            "order_density_drop": 0.361,
+            "active_workers": 29,
+            "fulfillment_delay": 31.4,
+            "platform_status": "stressed",
+            "confidence": 0.84,
+            "api_source": "platform_db",
+            "scenario": "normal",
+            "daypart": "lunch",
+            "zone_class": "high_density",
+            "model_variant": "behavioral",
+        }
+
+    monkeypatch.setattr(provider, "_build_platform_status", fake_build)
+
+    result = await provider.fetch(None, "south_delhi", "delhi", "db")
+
+    assert result.provider == "platform_db"
+    assert result.is_fallback is False
+    assert result.raw_payload["orders_per_hour"] == 78
+    assert result.raw_payload["order_density_drop"] == 0.361
+    assert result.raw_payload["active_workers"] == 29
+    assert result.raw_payload["fulfillment_delay"] == 31.4
+
+
+@pytest.mark.asyncio
+async def test_database_platform_provider_falls_back_to_mock_when_build_fails(monkeypatch):
+    provider = DatabasePlatformProvider()
+
+    async def fake_build(db, zone: str, city: str, captured_at):
+        raise RuntimeError("platform telemetry unavailable")
+
+    monkeypatch.setattr(provider, "_build_platform_status", fake_build)
+
+    result = await provider.fetch(None, "south_delhi", "delhi", "db")
+
+    assert result.provider == "platform_db_fallback"
+    assert result.is_fallback is True
+    assert result.raw_payload["fallback_source"] == "platform_simulator"
     assert "fallback_reason" in result.raw_payload

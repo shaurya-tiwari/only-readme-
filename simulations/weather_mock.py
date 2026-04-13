@@ -49,10 +49,17 @@ class WeatherSimulator:
 
     def __init__(self, scenario: Optional[str] = None):
         self.scenario = scenario
+        self.override = None
 
     def set_scenario(self, scenario: str):
         """Change the active scenario."""
         self.scenario = scenario
+
+    def set_override(self, payload: dict | None):
+        self.override = payload or None
+
+    def clear_override(self):
+        self.override = None
 
     def get_weather(self, zone: str) -> dict:
         """
@@ -60,6 +67,23 @@ class WeatherSimulator:
         Returns OpenWeatherMap-compatible structure.
         """
         coords = self.ZONE_COORDS.get(zone, {"lat": 28.61, "lon": 77.20})
+
+        if self.override:
+            rainfall = round(float(self.override.get("rainfall_mm_hr", 0) or 0), 1)
+            temperature = round(float(self.override.get("temperature_c", 30) or 30), 1)
+            return {
+                "zone": zone,
+                "coordinates": coords,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "rainfall_mm_hr": rainfall,
+                "temperature_c": temperature,
+                "humidity_percent": int(self.override.get("humidity_percent", 68) or 68),
+                "wind_speed_kmh": round(float(self.override.get("wind_speed_kmh", 14) or 14), 1),
+                "visibility_km": round(float(self.override.get("visibility_km", 5.0) or 5.0), 1),
+                "condition": str(self.override.get("condition", "lab_override")),
+                "api_source": "weather_simulator",
+                "scenario": "lab_override",
+            }
 
         if self.scenario == "heavy_rain":
             return self._heavy_rain(zone, coords)

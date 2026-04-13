@@ -30,9 +30,16 @@ class AQISimulator:
 
     def __init__(self, scenario: Optional[str] = None):
         self.scenario = scenario
+        self.override = None
 
     def set_scenario(self, scenario: str):
         self.scenario = scenario
+
+    def set_override(self, payload: dict | None):
+        self.override = payload or None
+
+    def clear_override(self):
+        self.override = None
 
     def get_aqi(self, zone: str, city: str = "delhi") -> dict:
         """Get current AQI for a zone."""
@@ -40,7 +47,21 @@ class AQISimulator:
         city = city.lower()
         baseline = self.CITY_BASELINES.get(city, {"min": 50, "max": 150})
 
-        if self.scenario == "hazardous":
+        if self.override:
+            aqi_value = int(self.override.get("aqi_value", baseline["max"]) or baseline["max"])
+            if aqi_value < 50:
+                category = "good"
+            elif aqi_value < 100:
+                category = "moderate"
+            elif aqi_value < 150:
+                category = "unhealthy_sensitive"
+            elif aqi_value < 300:
+                category = "unhealthy"
+            elif aqi_value < 400:
+                category = "hazardous"
+            else:
+                category = "severe"
+        elif self.scenario == "hazardous":
             aqi_value = random.randint(300, 500)
             category = "hazardous"
         elif self.scenario == "severe":
@@ -66,11 +87,11 @@ class AQISimulator:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "aqi_value": aqi_value,
             "category": category,
-            "dominant_pollutant": random.choice(["PM2.5", "PM10", "NO2", "O3"]),
-            "pm25": round(random.uniform(20, aqi_value * 0.8), 1),
-            "pm10": round(random.uniform(30, aqi_value * 1.2), 1),
+            "dominant_pollutant": self.override.get("dominant_pollutant") if self.override and self.override.get("dominant_pollutant") else random.choice(["PM2.5", "PM10", "NO2", "O3"]),
+            "pm25": round(float(self.override.get("pm25")) if self.override and self.override.get("pm25") is not None else random.uniform(20, aqi_value * 0.8), 1),
+            "pm10": round(float(self.override.get("pm10")) if self.override and self.override.get("pm10") is not None else random.uniform(30, aqi_value * 1.2), 1),
             "api_source": "aqi_simulator",
-            "scenario": self.scenario or "normal"
+            "scenario": "lab_override" if self.override else (self.scenario or "normal")
         }
 
 

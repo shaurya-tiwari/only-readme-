@@ -13,7 +13,11 @@ from backend.ml.fraud_model import FraudModel
 
 class FraudModelService:
     def __init__(self, artifact_dir: str | None = None) -> None:
-        self.artifact_dir = Path(artifact_dir or settings.ML_ARTIFACT_DIR)
+        self.artifact_dir = Path(
+            artifact_dir
+            or settings.FRAUD_ML_ARTIFACT_DIR
+            or settings.ML_ARTIFACT_DIR
+        )
         self.model = FraudModel()
         self.model_available = False
         self.last_error: str | None = None

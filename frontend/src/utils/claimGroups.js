@@ -63,6 +63,7 @@ export function groupClaimsByIncident(claims = [], options = {}) {
         secondary_factors: [],
         pattern_taxonomy: null,
         uncertainty_case: null,
+        decision_experience: null,
         overdue_count: 0,
         top_factors: [],
         fraud_model_version: null,
@@ -115,6 +116,7 @@ export function groupClaimsByIncident(claims = [], options = {}) {
       group.secondary_factors = Array.isArray(claim.secondary_factors) ? claim.secondary_factors.slice(0, 2) : group.secondary_factors;
       group.pattern_taxonomy = claim.pattern_taxonomy || group.pattern_taxonomy;
       group.uncertainty_case = claim.uncertainty_case || group.uncertainty_case;
+      group.decision_experience = claim.decision_experience || group.decision_experience;
       group.hours_waiting = Number(claim.hours_waiting || group.hours_waiting || 0);
     }
     group.payout_risk += Number(claim.payout_risk || 0);

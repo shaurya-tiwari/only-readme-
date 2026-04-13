@@ -58,10 +58,11 @@ Current reality:
   - operational polish before curated promotion
 - deployed repo should still receive only narrow, validated slices
 - backend is now at the point where further feature work should stay constrained; the next priorities are:
-  - stabilize remaining flaky tests
+  - finish observation-only validation
   - finish docs
   - promote reviewed slices
   - continue demo/judge-facing cleanup
+  - avoid reopening backend scope except for bug fixes, read-path hardening, and packaging
 
 ## Execution Principles
 
@@ -662,12 +663,19 @@ Implemented in the working repo:
 - real weather provider
 - real AQI provider
 - real traffic provider
+- behavioral platform telemetry provider behind `PLATFORM_SOURCE=db`
 - safe fallback behavior for all three
 - provider source/freshness visibility in health and product-facing surfaces
 - minimal shadow diff persistence for live weather/AQI/traffic comparisons
+- TomTom live traffic validation now works with an accepted API key
+- scheduler interval protection now clamps upward in real-traffic mode to stay under the daily traffic budget
+ - health/config decomposition now exists so hot frontend surfaces use:
+   - `/config/runtime`
+   - `/health/signals`
+   - `/health/diagnostics`
+ - legacy `/health/config` remains compatibility-only with timing breakdowns
 
 Not yet finished:
-- platform telemetry provider upgrade
 - richer shadow diff trend/reporting surfaces
 - deeper provider comparison governance outside the current persistence/query layer
 
@@ -722,6 +730,17 @@ Implemented as a deliberate light slice:
 - failure-safe payout behavior
 - operator-facing confidence bands
 - review high-load mode visibility
+- deterministic demo scenario wiring for:
+  - `clean_legit`
+  - `borderline_review`
+  - `suspicious_activity`
+ - deterministic DemoRunner split from exploratory Scenario Lab
+ - Scenario Lab now supports:
+   - city + zone selection
+   - composed signal inputs
+   - seeded worker-profile modes
+   - single-run and batch-run execution
+   - local preset save/load
 
 Not yet implemented:
 - deeper queue-pressure policy adaptation
@@ -792,7 +811,9 @@ Every wave should pass these gates before promotion:
 
 Current note:
 - focused provider/shadow regressions are green after the latest Wave 6 slice
-- the repo still has a small number of flaky DB-backed backend tests to stabilize before the next promotion-ready checkpoint
+- deterministic demo scenario regressions are green
+- health endpoint split regressions are green
+- the next hard checkpoint is a fresh full backend suite after the latest demo/scheduler slices
 
 ### Product Gate
 

@@ -13,7 +13,11 @@ from backend.ml.risk_model import RiskModel
 
 class RiskModelService:
     def __init__(self, artifact_dir: str | None = None) -> None:
-        self.artifact_dir = Path(artifact_dir or settings.ML_ARTIFACT_DIR)
+        self.artifact_dir = Path(
+            artifact_dir
+            or settings.RISK_ML_ARTIFACT_DIR
+            or settings.ML_ARTIFACT_DIR
+        )
         self.model = RiskModel()
         self.model_available = False
         self.last_error: str | None = None

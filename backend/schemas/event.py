@@ -68,6 +68,37 @@ class TriggerCheckResponse(BaseModel):
     details: List[Dict[str, Any]]
 
 
+class LabSignalConfig(BaseModel):
+    rain_mm_hr: float = 0
+    temperature_c: float = 30
+    aqi_value: int = 120
+    congestion_index: float = 0.35
+    order_density_drop: float = 0.1
+
+
+class LabWorkerConfig(BaseModel):
+    seed_demo_worker: bool = True
+    profile: str = Field(default="legit", pattern="^(legit|edge|fraud)$")
+    plan_name: str = "smart_protect"
+    platform: str = "zomato"
+    self_reported_income: int = 900
+    working_hours: int = 8
+
+
+class LabExecutionConfig(BaseModel):
+    mode: str = Field(default="single", pattern="^(single|batch)$")
+    runs: int = Field(default=1, ge=1, le=20)
+
+
+class TriggerLabRequest(BaseModel):
+    city: str = Field(default="delhi")
+    zones: List[str] = Field(default_factory=list)
+    signals: LabSignalConfig = Field(default_factory=LabSignalConfig)
+    worker: LabWorkerConfig = Field(default_factory=LabWorkerConfig)
+    execution: LabExecutionConfig = Field(default_factory=LabExecutionConfig)
+    preset_name: Optional[str] = None
+
+
 class SignalSnapshot(BaseModel):
     """Current signal readings for a zone."""
 

@@ -146,6 +146,7 @@ export function patternCopy(pattern) {
 
 export function adminIncidentNarrative(incident) {
   const copy = patternCopy(incident?.pattern_taxonomy);
+  const decisionExperience = incident?.decision_experience || {};
   const primary = formatAudienceFactor(incident?.primary_factor, "admin");
   const evidence = uniqueLabels([
     ...(incident?.secondary_factors || []).map((factor) => formatAudienceFactor(factor, "admin")),
@@ -153,13 +154,24 @@ export function adminIncidentNarrative(incident) {
   ]).slice(0, 3);
   return {
     patternLabel: copy.adminLabel,
-    summary: copy.adminSummary,
+    summary: decisionExperience.summary || copy.adminSummary,
+    reason: decisionExperience.action_reason || copy.adminSummary,
+    recommendation:
+      decisionExperience.admin_recommendation ||
+      "Use the full incident context before escalating or rejecting.",
+    historicalTendency:
+      decisionExperience.memory_note ||
+      "Use replay and resolved cases to confirm whether this pattern is adding avoidable review friction.",
     primary,
     evidence,
   };
 }
 
 export function workerClaimNarrative(claim) {
+  const decisionExperience = claim?.decision_experience || {};
+  if (decisionExperience?.summary) {
+    return decisionExperience.summary;
+  }
   const breakdown = claim?.decision_breakdown || {};
   const components = breakdown?.breakdown || {};
   const pattern = components?.pattern_taxonomy;
@@ -173,6 +185,10 @@ export function workerClaimNarrative(claim) {
     return "RideShield stopped this payout because the combined disruption and account checks did not support a safe payment.";
   }
   return copy.workerSummary;
+}
+
+export function workerNextStep(claim) {
+  return claim?.decision_experience?.next_step || "RideShield will keep the claim updated as soon as the next step is complete.";
 }
 
 export function workerFriendlyFactors(claim) {
