@@ -20,6 +20,7 @@ class SignalAggregator:
         snapshots: list[NormalizedSignalSnapshot],
         source_mode: str,
         shadow_diffs: list[dict[str, Any]] | None = None,
+        social_snapshot_value: float | None = None,
     ) -> dict[str, Any]:
         by_type = {snapshot.signal_type: snapshot for snapshot in snapshots}
         weather = by_type.get("weather")
@@ -32,12 +33,14 @@ class SignalAggregator:
         traffic_metrics = traffic.normalized_metrics if traffic else {}
         platform_metrics = platform.normalized_metrics if platform else {}
 
-        social_signal = self._calculate_social_signal(
-            weather.raw_payload if weather else {},
-            traffic.raw_payload if traffic else {},
-            platform.raw_payload if platform else {},
-            platform_metrics,
-        )
+        # Social signal: prefer independently-injected DB value, else weak fallback
+        if social_snapshot_value is not None and social_snapshot_value > 0:
+            social_signal = social_snapshot_value
+        else:
+            social_signal = self._fallback_social_signal(
+                platform.raw_payload if platform else {},
+                platform_metrics,
+            )
 
         timestamp = next(
             (
@@ -71,29 +74,23 @@ class SignalAggregator:
             },
         }
 
-    def _calculate_social_signal(
+    def _fallback_social_signal(
         self,
-        weather_payload: dict[str, Any],
-        traffic_payload: dict[str, Any],
         platform_payload: dict[str, Any],
         platform_metrics: dict[str, Any],
     ) -> float:
+        """Weak fallback: only fires during extreme platform collapse.
+
+        This is NOT the primary social signal anymore. The real social signal
+        comes from admin-injected SignalSnapshots (signal_type='social').
+        This fallback exists solely so compound-disaster scenarios that
+        explicitly crash the platform still produce some social signal.
+        """
         platform_drop = float(platform_metrics.get("order_density_drop", 0) or 0)
-        traffic_congestion = float(traffic_payload.get("congestion_index", 0) or 0)
-        weather_scenario = weather_payload.get("scenario")
         platform_scenario = platform_payload.get("scenario")
 
-        if platform_scenario == "platform_outage" and platform_drop >= settings.SOCIAL_INACTIVITY_THRESHOLD:
-            return round(
-                min(
-                    1.0,
-                    platform_drop + (0.1 if traffic_congestion >= settings.TRAFFIC_THRESHOLD else 0.0),
-                ),
-                2,
-            )
-
-        if weather_scenario == "monsoon" and platform_drop >= 0.5:
-            return round(min(1.0, platform_drop), 2)
+        if platform_scenario == "platform_outage" and platform_drop >= 0.85:
+            return round(min(1.0, platform_drop * 0.7), 2)
 
         return 0.0
 

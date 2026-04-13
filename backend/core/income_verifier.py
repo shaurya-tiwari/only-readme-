@@ -31,11 +31,27 @@ class IncomeVerifier:
         3: Decimal("1.0"), 4: Decimal("1.0"), 5: Decimal("1.0"), 6: Decimal("1.0"),
     }
 
+    # Platform-specific income adjustments reflecting earning dynamics per platform
+    PLATFORM_MULTIPLIERS = {
+        "zomato": Decimal("1.00"),
+        "swiggy": Decimal("1.05"),
+        "zepto": Decimal("1.15"),     # Quick-commerce → higher per-stop
+        "amazon": Decimal("0.90"),    # Heavier parcels, lower density
+        "dunzo": Decimal("0.95"),
+        "blinkit": Decimal("1.10"),
+    }
+
     async def verify_income(self, db: AsyncSession, worker: Worker) -> Dict:
         self_reported = _d(worker.self_reported_income)
         platform_income = _d(await self._get_platform_income(db, worker))
         behavioral_income = _d(await self._get_behavioral_income(db, worker))
         verified = self_reported * Decimal("0.3") + platform_income * Decimal("0.5") + behavioral_income * Decimal("0.2")
+
+        # Apply platform-specific multiplier
+        platform_key = (worker.platform or "").lower().strip()
+        platform_mult = self.PLATFORM_MULTIPLIERS.get(platform_key, Decimal("1.0"))
+        verified = verified * platform_mult
+
         city_avg = _d(settings.CITY_RISK_PROFILES.get(worker.city, {}).get("avg_daily_income", 800))
         city_cap = city_avg * Decimal("1.5")
         final_income = min(verified, city_cap)
@@ -46,6 +62,8 @@ class IncomeVerifier:
             "platform_estimated": float(platform_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
             "behavioral_estimated": float(behavioral_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
             "weighted_income": float(verified.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+            "platform": platform_key,
+            "platform_multiplier": float(platform_mult),
             "city_avg": float(city_avg),
             "city_cap": float(city_cap),
             "cap_applied": verified > city_cap,

@@ -25,7 +25,7 @@ class TriggerEngine:
         "aqi": {"field": "aqi_value", "threshold": settings.AQI_THRESHOLD, "weight": 0.15, "source": "aqi"},
         "traffic": {"field": "congestion_index", "threshold": settings.TRAFFIC_THRESHOLD, "weight": 0.15, "source": "traffic"},
         "platform_outage": {"field": "order_density_drop", "threshold": settings.PLATFORM_OUTAGE_THRESHOLD, "weight": 0.20, "source": "platform"},
-        "social": {"field": "normalized_inactivity", "threshold": settings.SOCIAL_INACTIVITY_THRESHOLD, "weight": 0.15, "source": "behavioral"},
+        "social": {"field": "normalized_inactivity", "threshold": settings.SOCIAL_INACTIVITY_THRESHOLD, "weight": 0.15, "source": "social_disruption"},
     }
 
     async def fetch_all_signals(
@@ -45,7 +45,7 @@ class TriggerEngine:
                 "aqi": {"field": "aqi_value", "threshold": float(profile.aqi_threshold), "weight": 0.15, "source": "aqi"},
                 "traffic": {"field": "congestion_index", "threshold": float(profile.traffic_threshold), "weight": 0.15, "source": "traffic"},
                 "platform_outage": {"field": "order_density_drop", "threshold": float(profile.platform_outage_threshold), "weight": 0.20, "source": "platform"},
-                "social": {"field": "normalized_inactivity", "threshold": float(profile.social_inactivity_threshold), "weight": 0.15, "source": "behavioral"},
+                "social": {"field": "normalized_inactivity", "threshold": float(profile.social_inactivity_threshold), "weight": 0.15, "source": "social_disruption"},
             }
         return self.THRESHOLDS
 
@@ -235,6 +235,7 @@ class TriggerEngine:
 
     async def find_affected_workers(self, db: AsyncSession, zone: Zone, fired_triggers: List[str]) -> List[Dict]:
         now = utc_now_naive()
+        grace_window = timedelta(hours=1)
         workers = (
             await db.execute(
                 select(Worker)
@@ -247,15 +248,28 @@ class TriggerEngine:
         for worker in workers:
             active_policy = None
             for policy in worker.policies:
-                if policy.status == "active" and policy.activates_at <= now <= policy.expires_at:
-                    active_policy = policy
-                    break
-            if not active_policy:
-                for policy in worker.policies:
-                    if policy.status == "pending" and policy.activates_at <= now <= policy.expires_at:
-                        policy.status = "active"
+                # Auto-expire policies that are past grace window
+                if (
+                    policy.status in ("active", "pending")
+                    and policy.expires_at < (now - grace_window)
+                ):
+                    policy.status = "expired"
+                    continue
+
+                # Active policy: within activation window OR within 1-hour grace
+                if policy.status == "active" and policy.activates_at <= now:
+                    if now <= policy.expires_at or now <= (policy.expires_at + grace_window):
                         active_policy = policy
                         break
+
+            if not active_policy:
+                for policy in worker.policies:
+                    if policy.status == "pending" and policy.activates_at <= now:
+                        if now <= policy.expires_at or now <= (policy.expires_at + grace_window):
+                            policy.status = "active"
+                            active_policy = policy
+                            break
+
             if not active_policy:
                 continue
             covered_triggers = [t for t in fired_triggers if t in active_policy.triggers_covered]

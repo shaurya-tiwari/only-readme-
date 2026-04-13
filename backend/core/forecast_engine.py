@@ -13,7 +13,6 @@ from backend.config import settings
 from backend.core.forecast_preprocessor import forecast_preprocessor
 from backend.core.location_service import location_service
 from backend.core.risk_model_service import risk_model_service
-from backend.core.signal_service import signal_service
 from backend.db.models import Event, Payout
 from backend.ml.explainability import summarize_forecast
 from backend.ml.features.risk_features import risk_feature_builder
@@ -34,7 +33,7 @@ class ForecastEngine:
     async def forecast_zone(self, db: AsyncSession, city: str, zone: str, horizon_hours: int = 24) -> dict[str, Any]:
         zone_record = await location_service.resolve_zone(db, city, zone)
         month = 7 if horizon_hours >= 168 else 6
-        signal_snapshot = await signal_service.fetch_zone_snapshot(db, zone, city, mode="live")
+        signal_snapshot = await self._read_latest_signals_from_db(db, zone, city)
         cleaned_signals, preprocessing = await forecast_preprocessor.preprocess(db, zone_record.slug, signal_snapshot)
         incidents_7d, incidents_30d = await self._incident_pressure(db, zone_record.slug)
         payout_pressure = await self._payout_pressure(db, city)
@@ -170,6 +169,51 @@ class ForecastEngine:
             )
         ).scalar_one()
         return int(incidents_7d or 0), int(incidents_30d or 0)
+
+    async def _read_latest_signals_from_db(self, db: AsyncSession, zone: str, city: str) -> dict[str, Any]:
+        """Read latest persisted signal snapshots from DB instead of calling external APIs."""
+        from sqlalchemy import and_
+        from backend.db.models import SignalSnapshot
+
+        signal_types = ("weather", "aqi", "traffic", "platform", "social")
+        signals: dict[str, Any] = {"city": city, "zone": zone, "source_mode": "cached"}
+
+        for signal_type in signal_types:
+            row = (
+                await db.execute(
+                    select(SignalSnapshot)
+                    .where(
+                        and_(
+                            SignalSnapshot.zone == zone,
+                            SignalSnapshot.signal_type == signal_type,
+                        )
+                    )
+                    .order_by(SignalSnapshot.captured_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if row and row.normalized_metrics:
+                metrics = row.normalized_metrics
+                if signal_type == "weather":
+                    signals["rain"] = float(metrics.get("rainfall_mm_hr", 0) or 0)
+                    signals["heat"] = float(metrics.get("temperature_c", 0) or 0)
+                elif signal_type == "aqi":
+                    signals["aqi"] = int(metrics.get("aqi_value", 0) or 0)
+                elif signal_type == "traffic":
+                    signals["traffic"] = float(metrics.get("congestion_index", 0) or 0)
+                elif signal_type == "platform":
+                    signals["platform_outage"] = float(metrics.get("order_density_drop", 0) or 0)
+                elif signal_type == "social":
+                    signals["social"] = float(metrics.get("severity", 0) or 0)
+
+        signals.setdefault("rain", 0)
+        signals.setdefault("heat", 0)
+        signals.setdefault("aqi", 0)
+        signals.setdefault("traffic", 0)
+        signals.setdefault("platform_outage", 0)
+        signals.setdefault("social", 0.0)
+        signals["raw_data"] = {"weather": {}, "aqi": {}, "traffic": {}, "platform": {}}
+        return signals
 
     async def _payout_pressure(self, db: AsyncSession, city: str) -> float:
         payout_count = (

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from copy import deepcopy
+from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
@@ -25,6 +28,14 @@ class SignalService:
     SIGNAL_TYPES = ("weather", "aqi", "traffic", "platform")
     LIVE_SHADOW_SIGNAL_TYPES = {"weather", "aqi", "traffic"}
 
+    def __init__(self):
+        self._fetch_semaphore = asyncio.Semaphore(settings.SCHEDULER_FETCH_CONCURRENCY)
+
+    async def _guarded_fetch(self, provider, db, zone, city, source_mode):
+        """Fetch with concurrency limit to prevent event loop flooding."""
+        async with self._fetch_semaphore:
+            return await provider.fetch(db, zone, city, source_mode)
+
     async def fetch_zone_snapshot(
         self,
         db: AsyncSession | None,
@@ -39,7 +50,7 @@ class SignalService:
 
         for signal_type in self.SIGNAL_TYPES:
             provider = provider_registry.get_provider(signal_type)
-            fetch_result = await provider.fetch(db, zone, city, source_mode)
+            fetch_result = await self._guarded_fetch(provider, db, zone, city, source_mode)
             primary_snapshot = provider_registry.normalize(fetch_result)
             primary_snapshots.append(primary_snapshot)
 
@@ -53,6 +64,9 @@ class SignalService:
                 if comparison_snapshot is not None:
                     persisted_shadow_diffs.append(shadow_diff_service.compare(primary_snapshot, comparison_snapshot))
 
+        # Read the latest independent social snapshot from DB (if any)
+        social_snapshot_value = await self._read_social_snapshot(db, zone)
+
         await snapshot_writer.persist(db, primary_snapshots)
         await shadow_diff_writer.persist(db, persisted_shadow_diffs)
         return signal_aggregator.build_zone_snapshot(
@@ -61,7 +75,40 @@ class SignalService:
             primary_snapshots,
             source_mode=source_mode,
             shadow_diffs=shadow_diffs,
+            social_snapshot_value=social_snapshot_value,
         )
+
+    async def _read_social_snapshot(
+        self,
+        db: AsyncSession | None,
+        zone: str,
+    ) -> float | None:
+        """Read the latest admin-injected social disruption signal for a zone.
+
+        Social snapshots are only valid for 6 hours. Returns severity float
+        if a recent snapshot exists, else None (letting the aggregator
+        fall back to its weak platform-derived heuristic).
+        """
+        if db is None:
+            return None
+        cutoff = utc_now_naive() - timedelta(hours=6)
+        row = (
+            await db.execute(
+                select(SignalSnapshot)
+                .where(
+                    and_(
+                        SignalSnapshot.zone == zone,
+                        SignalSnapshot.signal_type == "social",
+                        SignalSnapshot.captured_at >= cutoff,
+                    )
+                )
+                .order_by(SignalSnapshot.captured_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if row and row.normalized_metrics:
+            return float(row.normalized_metrics.get("severity", 0) or 0)
+        return None
 
     async def _build_shadow_snapshot(
         self,
@@ -75,7 +122,7 @@ class SignalService:
         if shadow_provider is None or shadow_provider.source_name == primary_snapshot.provider:
             return deepcopy(primary_snapshot)
 
-        shadow_result = await shadow_provider.fetch(db, zone, city, "shadow")
+        shadow_result = await self._guarded_fetch(shadow_provider, db, zone, city, "shadow")
         return provider_registry.normalize(shadow_result)
 
     def _should_persist_live_shadow_diff(self, source_mode: str, signal_type: str) -> bool:
@@ -97,7 +144,7 @@ class SignalService:
         if comparison_provider is None or comparison_provider.source_name == primary_snapshot.provider:
             return None
 
-        comparison_result = await comparison_provider.fetch(db, zone, city, "shadow")
+        comparison_result = await self._guarded_fetch(comparison_provider, db, zone, city, "shadow")
         return provider_registry.normalize(comparison_result)
 
     def source_overview(self) -> dict[str, str]:

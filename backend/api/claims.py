@@ -20,6 +20,38 @@ from backend.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/claims", tags=["Claims"])
 REVIEW_QUEUE_HIGH_LOAD_THRESHOLD = 4
+PATTERN_EXPERIENCE = {
+    "weak_overlap_noise": {
+        "behavioral_label": "low_signal_noise",
+        "summary": "RideShield verified a disruption, but the recent activity signals did not line up cleanly enough for instant payout.",
+        "memory_note": "Similar low-signal cases often turn out legitimate after review, so this pattern is tracked carefully.",
+        "admin_recommendation": "Check for weak-signal false-review risk before rejecting.",
+    },
+    "device_micro_noise": {
+        "behavioral_label": "stable_worker",
+        "summary": "The disruption looks valid, but the device consistency check was unusual enough to slow this payout briefly.",
+        "memory_note": "Small device-only cases are often legitimate when the rest of the claim is clean.",
+        "admin_recommendation": "Verify device consistency without over-weighting it against a small payout.",
+    },
+    "cluster_micro_resolved": {
+        "behavioral_label": "borderline_disruption",
+        "summary": "RideShield saw a shared activity pattern, but the payout is small and the broader evidence still looks legitimate.",
+        "memory_note": "This narrow shared-pattern pocket is monitored because similar cases often resolve safely.",
+        "admin_recommendation": "Confirm the shared-pattern context without treating it as a fraud ring by default.",
+    },
+    "cluster_combo_pressure": {
+        "behavioral_label": "coordinated_activity",
+        "summary": "RideShield found a broader shared activity pattern alongside another review signal, so this payout was held back.",
+        "memory_note": "Shared-pattern cases need tighter review because they can represent coordinated activity.",
+        "admin_recommendation": "Review for coordinated behavior before allowing payout.",
+    },
+    "mixed_review_pressure": {
+        "behavioral_label": "borderline_disruption",
+        "summary": "RideShield saw a real disruption, but the claim still contains mixed signals that keep it out of the instant payout lane.",
+        "memory_note": "Mixed-signal cases remain important for replay because they often drive manual-review load.",
+        "admin_recommendation": "Use the full claim context to separate real disruption from avoidable review friction.",
+    },
+}
 
 
 def _coerce_float(value, default: float = 0.0) -> float:
@@ -40,6 +72,119 @@ def _extract_fraud_model_payload(claim: Claim) -> dict:
         return {}
     fraud_model = claim.decision_breakdown.get("fraud_model")
     return fraud_model if isinstance(fraud_model, dict) else {}
+
+
+def _behavioral_label(
+    status: str,
+    pattern_taxonomy: str | None,
+    uncertainty_case: str | None,
+    fraud_probability: float,
+    trust_score: float,
+) -> str:
+    if pattern_taxonomy in PATTERN_EXPERIENCE:
+        return PATTERN_EXPERIENCE[pattern_taxonomy]["behavioral_label"]
+    if status == "approved" and trust_score >= 0.7 and fraud_probability <= 0.2:
+        return "stable_worker"
+    if status == "rejected" or fraud_probability >= 0.45:
+        return "coordinated_activity"
+    if uncertainty_case:
+        return "borderline_disruption"
+    return "stable_worker" if status == "approved" else "low_signal_noise"
+
+
+def _build_decision_experience(
+    *,
+    claim: Claim,
+    decision_breakdown: dict,
+    review_context: dict | None = None,
+) -> dict[str, str] | None:
+    components = decision_breakdown.get("breakdown") if isinstance(decision_breakdown.get("breakdown"), dict) else {}
+    uncertainty = decision_breakdown.get("uncertainty") if isinstance(decision_breakdown.get("uncertainty"), dict) else {}
+    pattern_taxonomy = components.get("pattern_taxonomy")
+    uncertainty_case = uncertainty.get("case") or components.get("uncertainty_case")
+    review_context = review_context or {}
+    fraud_probability = _coerce_float(
+        decision_breakdown.get("fraud_model", {}).get("fraud_probability")
+        if isinstance(decision_breakdown.get("fraud_model"), dict)
+        else None,
+        _coerce_float(claim.fraud_score),
+    )
+    trust_score = _coerce_float(claim.trust_score, 0.5)
+    decision_confidence_band = (
+        review_context.get("decision_confidence_band")
+        or decision_breakdown.get("decision_confidence_band")
+        or "moderate"
+    )
+
+    template = PATTERN_EXPERIENCE.get(pattern_taxonomy, {})
+    behavioral_label = _behavioral_label(
+        claim.status,
+        pattern_taxonomy,
+        uncertainty_case,
+        fraud_probability,
+        trust_score,
+    )
+
+    if claim.status == "approved":
+        summary = "RideShield confirmed the disruption and released this payout automatically."
+        confidence_note = {
+            "high": "This was a high-confidence case, so the payout did not need a manual check.",
+            "moderate": "The evidence was strong enough to pay automatically without waiting for a reviewer.",
+            "low": "The payout still went through, but this is the kind of case the system keeps measuring closely.",
+        }.get(decision_confidence_band, "The evidence was strong enough to pay automatically.")
+        action_reason = "The disruption evidence, account history, and payout checks aligned clearly enough for instant payout."
+        next_step = "The payout will continue through the normal processing flow unless a downstream transfer issue appears."
+        memory_note = template.get(
+            "memory_note",
+            "RideShield stores this decision so similar cases can be measured against future review outcomes.",
+        )
+        admin_recommendation = "No manual action is needed unless payout execution fails."
+    elif claim.status == "rejected":
+        summary = "RideShield stopped this payout because the combined account and disruption checks did not support a safe payment."
+        confidence_note = {
+            "high": "This was a high-confidence rejection based on the signal mix available at decision time.",
+            "moderate": "The system found enough conflicting evidence to stop the payout rather than guess.",
+            "low": "The system still rejected the payout, but this type of case should be reviewed for drift over time.",
+        }.get(decision_confidence_band, "The system found enough conflicting evidence to stop the payout.")
+        action_reason = "The claim did not meet the standard for a safe automated payout."
+        next_step = "The worker can review the claim details, and admins can audit the decision trail if needed."
+        memory_note = template.get(
+            "memory_note",
+            "Rejected cases remain in decision memory so future policy changes can be compared safely.",
+        )
+        admin_recommendation = template.get("admin_recommendation", "Audit the supporting evidence before overriding a rejection.")
+    else:
+        summary = template.get(
+            "summary",
+            "RideShield detected a disruption, but the signal mix was not clear enough to release payout automatically.",
+        )
+        confidence_note = {
+            "high": "The system is confident about the disruption, but policy still requires a short manual check for this pattern.",
+            "moderate": "The system saw enough friction in the signal mix to avoid guessing on payout.",
+            "low": "This is an unclear case, so the system is deliberately waiting for a manual check.",
+        }.get(decision_confidence_band, "The system is deliberately waiting for a manual check.")
+        action_reason = {
+            "high": "The payout was paused because this pattern still sits in a guarded review lane.",
+            "moderate": "The payout was paused to avoid releasing money on conflicting evidence.",
+            "low": "The payout was paused because the evidence is too mixed for a safe automatic decision.",
+        }.get(decision_confidence_band, "The payout was paused for verification.")
+        next_step = "An operations reviewer will verify the claim and update the payout status."
+        memory_note = template.get(
+            "memory_note",
+            "RideShield keeps track of similar delayed cases so manual-review friction can be reduced safely over time.",
+        )
+        admin_recommendation = template.get("admin_recommendation", "Review the evidence mix and resolve the claim without over-weighting one weak signal.")
+
+    return {
+        "pattern": pattern_taxonomy or "standard_flow",
+        "behavioral_label": behavioral_label,
+        "summary": summary,
+        "confidence_note": confidence_note,
+        "action_reason": action_reason,
+        "next_step": next_step,
+        "memory_note": memory_note,
+        "admin_recommendation": admin_recommendation,
+    }
 
 
 def _is_zero_touch_approved(claim: Claim) -> bool:
@@ -185,6 +330,29 @@ def serialize_claim_summary(claim: Claim) -> dict:
         payout_breakdown = claim.decision_breakdown.get("payout_breakdown")
         decision_confidence = claim.decision_breakdown.get("decision_confidence")
         decision_confidence_band = claim.decision_breakdown.get("decision_confidence_band")
+    decision_experience = _build_decision_experience(
+        claim=claim,
+        decision_breakdown=claim.decision_breakdown if isinstance(claim.decision_breakdown, dict) else {},
+    )
+
+    # Income loss estimation — makes the "income protection" value visible
+    income_per_hour = float(claim.income_per_hour) if claim.income_per_hour is not None else 0.0
+    disruption_hours = float(claim.disruption_hours) if claim.disruption_hours is not None else 0.0
+    peak_multiplier = float(claim.peak_multiplier) if claim.peak_multiplier is not None else 1.0
+    estimated_income_loss = round(income_per_hour * disruption_hours * peak_multiplier, 2)
+    final_payout_val = float(claim.final_payout) if claim.final_payout is not None else 0.0
+    coverage_ratio = round(final_payout_val / estimated_income_loss, 2) if estimated_income_loss > 0 else 0.0
+
+    income_loss = {
+        "estimated_income_loss": estimated_income_loss,
+        "payout_amount": final_payout_val,
+        "coverage_ratio": min(coverage_ratio, 1.0),
+        "calculation_basis": {
+            "income_per_hour": income_per_hour,
+            "disruption_hours": disruption_hours,
+            "peak_multiplier": peak_multiplier,
+        },
+    }
 
     return {
         "id": str(claim.id),
@@ -193,11 +361,11 @@ def serialize_claim_summary(claim: Claim) -> dict:
         "policy_id": str(claim.policy_id),
         "event_id": str(claim.event_id),
         "trigger_type": claim.trigger_type,
-        "disruption_hours": float(claim.disruption_hours) if claim.disruption_hours is not None else None,
-        "income_per_hour": float(claim.income_per_hour) if claim.income_per_hour is not None else None,
-        "peak_multiplier": float(claim.peak_multiplier) if claim.peak_multiplier is not None else None,
+        "disruption_hours": disruption_hours,
+        "income_per_hour": income_per_hour,
+        "peak_multiplier": peak_multiplier,
         "calculated_payout": float(claim.calculated_payout) if claim.calculated_payout is not None else None,
-        "final_payout": float(claim.final_payout) if claim.final_payout is not None else None,
+        "final_payout": final_payout_val,
         "disruption_score": float(claim.disruption_score) if claim.disruption_score is not None else None,
         "event_confidence": float(claim.event_confidence) if claim.event_confidence is not None else None,
         "fraud_score": float(claim.fraud_score) if claim.fraud_score is not None else None,
@@ -208,6 +376,7 @@ def serialize_claim_summary(claim: Claim) -> dict:
         "decision_breakdown": claim.decision_breakdown,
         "fraud_model": fraud_model,
         "payout_breakdown": payout_breakdown,
+        "income_loss": income_loss,
         "status": claim.status,
         "rejection_reason": claim.rejection_reason,
         "review_deadline": claim.review_deadline.isoformat() if claim.review_deadline else None,
@@ -215,6 +384,7 @@ def serialize_claim_summary(claim: Claim) -> dict:
         "reviewed_at": claim.reviewed_at.isoformat() if claim.reviewed_at else None,
         "created_at": claim.created_at.isoformat() if claim.created_at else None,
         "payout_info": payout_info,
+        "decision_experience": decision_experience,
     }
 
 
@@ -328,6 +498,11 @@ async def get_review_queue(
                     "event_type": claim.event.event_type if claim.event else None,
                     "is_overdue": is_overdue,
                     **review_context,
+                    "decision_experience": _build_decision_experience(
+                        claim=claim,
+                        decision_breakdown=claim.decision_breakdown if isinstance(claim.decision_breakdown, dict) else {},
+                        review_context=review_context,
+                    ),
                 },
             )
         )

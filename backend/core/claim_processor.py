@@ -343,6 +343,16 @@ class ClaimProcessor:
             "details": {},
         }
 
+        # Policy expiry double-check (catches race between worker discovery and claim)
+        now = utc_now_naive()
+        grace_window = timedelta(hours=1)
+        if policy.expires_at < (now - grace_window):
+            if policy.status != "expired":
+                policy.status = "expired"
+            result["status"] = "rejected"
+            result["details"] = {"message": "Policy expired before claim could be processed."}
+            return result
+
         existing_claim = (
             await db.execute(
                 select(Claim).where(
