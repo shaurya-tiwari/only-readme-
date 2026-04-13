@@ -35,6 +35,18 @@ ZONE_CENTROIDS: dict[str, tuple[Decimal, Decimal]] = {
     "anna_nagar": (Decimal("13.0850000"), Decimal("80.2101000")),
     "adyar": (Decimal("13.0067000"), Decimal("80.2576000")),
     "velachery": (Decimal("12.9791000"), Decimal("80.2212000")),
+    "banjara_hills": (Decimal("17.4126000"), Decimal("78.4347000")),
+    "hitech_city": (Decimal("17.4504000"), Decimal("78.3802000")),
+    "gachibowli": (Decimal("17.4401000"), Decimal("78.3489000")),
+    "kukatpally": (Decimal("17.4948000"), Decimal("78.3996000")),
+    "hinjawadi": (Decimal("18.5912000"), Decimal("73.7389000")),
+    "kothrud": (Decimal("18.5074000"), Decimal("73.8077000")),
+    "viman_nagar": (Decimal("18.5679000"), Decimal("73.9143000")),
+    "hadapsar": (Decimal("18.5089000"), Decimal("73.9260000")),
+    "salt_lake": (Decimal("22.5877000"), Decimal("88.4173000")),
+    "new_town": (Decimal("22.5750000"), Decimal("88.4790000")),
+    "park_street": (Decimal("22.5539000"), Decimal("88.3526000")),
+    "howrah": (Decimal("22.5958000"), Decimal("88.2636000")),
 }
 
 

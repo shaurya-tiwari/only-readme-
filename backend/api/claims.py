@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.core.payout_executor import payout_executor
+from backend.core.decision_memory import record_claim_resolution
 from backend.core.session_auth import ensure_worker_access, require_admin_session, require_authenticated_session
 from backend.database import get_db
 from backend.db.models import AuditLog, Claim, Event, TrustScore, Worker
@@ -18,6 +19,7 @@ from backend.schemas.claim import ClaimResolveRequest
 from backend.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/claims", tags=["Claims"])
+REVIEW_QUEUE_HIGH_LOAD_THRESHOLD = 4
 
 
 def _coerce_float(value, default: float = 0.0) -> float:
@@ -46,6 +48,8 @@ def _is_zero_touch_approved(claim: Claim) -> bool:
 
 def _build_review_context(claim: Claim, now) -> dict:
     decision_breakdown = claim.decision_breakdown if isinstance(claim.decision_breakdown, dict) else {}
+    decision_components = decision_breakdown.get("breakdown") if isinstance(decision_breakdown.get("breakdown"), dict) else {}
+    uncertainty = decision_breakdown.get("uncertainty") if isinstance(decision_breakdown.get("uncertainty"), dict) else {}
     fraud_model = _extract_fraud_model_payload(claim)
     fraud_probability = _coerce_float(fraud_model.get("fraud_probability"), _coerce_float(claim.fraud_score))
     payout_amount = _coerce_float(claim.final_payout, _coerce_float(claim.calculated_payout))
@@ -154,6 +158,8 @@ def _build_review_context(claim: Claim, now) -> dict:
         "decision_confidence_band": decision_confidence_band,
         "primary_factor": primary_factor,
         "secondary_factors": secondary_factors,
+        "pattern_taxonomy": decision_components.get("pattern_taxonomy"),
+        "uncertainty_case": uncertainty.get("case") or decision_components.get("uncertainty_case"),
     }
 
 
@@ -172,9 +178,13 @@ def serialize_claim_summary(claim: Claim) -> dict:
 
     fraud_model = None
     payout_breakdown = None
+    decision_confidence = None
+    decision_confidence_band = None
     if isinstance(claim.decision_breakdown, dict):
         fraud_model = claim.decision_breakdown.get("fraud_model")
         payout_breakdown = claim.decision_breakdown.get("payout_breakdown")
+        decision_confidence = claim.decision_breakdown.get("decision_confidence")
+        decision_confidence_band = claim.decision_breakdown.get("decision_confidence_band")
 
     return {
         "id": str(claim.id),
@@ -193,6 +203,8 @@ def serialize_claim_summary(claim: Claim) -> dict:
         "fraud_score": float(claim.fraud_score) if claim.fraud_score is not None else None,
         "trust_score": float(claim.trust_score) if claim.trust_score is not None else None,
         "final_score": float(claim.final_score) if claim.final_score is not None else None,
+        "decision_confidence": _coerce_float(decision_confidence) if decision_confidence is not None else None,
+        "decision_confidence_band": decision_confidence_band,
         "decision_breakdown": claim.decision_breakdown,
         "fraud_model": fraud_model,
         "payout_breakdown": payout_breakdown,
@@ -326,7 +338,15 @@ async def get_review_queue(
             key=lambda item: (-item[0], item[1], item[2]["created_at"] or ""),
         )
     ]
-    return {"total_pending": len(claims_data), "overdue_count": overdue_count, "claims": claims_data}
+    total_pending = len(claims_data)
+    high_load_mode = total_pending >= REVIEW_QUEUE_HIGH_LOAD_THRESHOLD
+    return {
+        "total_pending": total_pending,
+        "overdue_count": overdue_count,
+        "high_load_mode": high_load_mode,
+        "high_load_threshold": REVIEW_QUEUE_HIGH_LOAD_THRESHOLD,
+        "claims": claims_data,
+    }
 
 
 @router.post("/resolve/{claim_id}")
@@ -337,7 +357,11 @@ async def resolve_delayed_claim(
     _: dict = Depends(require_admin_session),
 ):
     claim = (
-        await db.execute(select(Claim).options(selectinload(Claim.worker), selectinload(Claim.policy)).where(Claim.id == claim_id))
+        await db.execute(
+            select(Claim)
+            .options(selectinload(Claim.worker), selectinload(Claim.policy), selectinload(Claim.event))
+            .where(Claim.id == claim_id)
+        )
     ).scalar_one_or_none()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found.")
@@ -350,18 +374,29 @@ async def resolve_delayed_claim(
     claim.updated_at = now
     payout_result = None
 
+    previous_status = claim.status
     if request.decision == "approve":
         claim.status = "approved"
         payout_amount = claim.final_payout
         if payout_amount is None:
             payout_amount = claim.calculated_payout or 0
-        payout_result = await payout_executor.execute(
-            db,
-            claim,
-            claim.worker,
-            claim.policy.plan_name if claim.policy else "smart_protect",
-            float(payout_amount),
-        )
+        try:
+            payout_result = await payout_executor.execute(
+                db,
+                claim,
+                claim.worker,
+                claim.policy.plan_name if claim.policy else "smart_protect",
+                float(payout_amount),
+            )
+        except Exception as exc:
+            payout_result = await payout_executor.record_failed(
+                db,
+                claim,
+                claim.worker,
+                claim.policy.plan_name if claim.policy else "smart_protect",
+                float(payout_amount),
+                str(exc),
+            )
         trust = (await db.execute(select(TrustScore).where(TrustScore.worker_id == claim.worker_id))).scalar_one_or_none()
         if trust:
             trust.approved_claims = (trust.approved_claims or 0) + 1
@@ -379,6 +414,23 @@ async def resolve_delayed_claim(
             action=f"resolved_{request.decision}",
             details={"reviewed_by": request.reviewed_by, "decision": request.decision, "reason": request.reason},
         )
+    )
+    await record_claim_resolution(
+        db=db,
+        claim=claim,
+        event=claim.event,
+        decision_source="admin",
+        reviewed_by=request.reviewed_by,
+        review_reason=request.reason,
+        label_source="admin_review",
+        payout_result=payout_result,
+        resolution_payload={
+            "previous_status": previous_status,
+            "resolved_by": request.reviewed_by,
+            "decision": request.decision,
+            "reason": request.reason,
+            "within_sla": now <= claim.review_deadline if claim.review_deadline else None,
+        },
     )
     await db.flush()
     within_sla = None
@@ -437,6 +489,8 @@ async def get_claim_stats(
         "auto_approval_rate": round(auto_approved / max(1, total) * 100, 1),
         "zero_touch_approvals": auto_approved,
         "zero_touch_rate": round(auto_approved / max(1, total) * 100, 1),
+        "high_load_mode": delayed >= REVIEW_QUEUE_HIGH_LOAD_THRESHOLD,
+        "high_load_threshold": REVIEW_QUEUE_HIGH_LOAD_THRESHOLD,
         "fraud_rate": round(fraud_flagged / max(1, total) * 100, 1),
         "avg_final_score": avg_final_score,
         "avg_fraud_score": avg_fraud_score,

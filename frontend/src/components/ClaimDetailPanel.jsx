@@ -1,4 +1,5 @@
 import { formatCurrency, formatDateTime, formatScore, humanizeSlug, statusPill } from "../utils/formatters";
+import { patternCopy, workerClaimNarrative, workerFriendlyFactors } from "../utils/decisionNarrative";
 
 function renderTriggerList(triggers = []) {
   if (!triggers.length) {
@@ -29,6 +30,9 @@ export default function ClaimDetailPanel({ claim }) {
   const fraudModel = claim.fraud_model || breakdown.fraud_model || {};
   const incidentTriggers = inputs.incident_triggers || claim.decision_breakdown?.incident_triggers || [claim.trigger_type];
   const coveredTriggers = inputs.covered_triggers || claim.decision_breakdown?.covered_triggers || [];
+  const pattern = components.pattern_taxonomy;
+  const patternNarrative = patternCopy(pattern);
+  const workerFactors = workerFriendlyFactors(claim);
 
   return (
     <div className="context-panel p-6">
@@ -70,26 +74,26 @@ export default function ClaimDetailPanel({ claim }) {
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="text-sm text-on-surface-variant">Final score</p>
+          <p className="text-sm text-on-surface-variant">Decision strength</p>
           <p className="mt-2 font-semibold text-primary">{formatScore(claim.final_score)}</p>
         </div>
         <div>
-          <p className="text-sm text-on-surface-variant">Fraud score</p>
+          <p className="text-sm text-on-surface-variant">Fraud pressure</p>
           <p className="mt-2 font-semibold text-primary">{formatScore(claim.fraud_score)}</p>
         </div>
         <div>
-          <p className="text-sm text-on-surface-variant">Event confidence</p>
+          <p className="text-sm text-on-surface-variant">Incident evidence</p>
           <p className="mt-2 font-semibold text-primary">{formatScore(claim.event_confidence)}</p>
         </div>
         <div>
-          <p className="text-sm text-on-surface-variant">Trust score</p>
+          <p className="text-sm text-on-surface-variant">Account trust</p>
           <p className="mt-2 font-semibold text-primary">{formatScore(claim.trust_score)}</p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div className="panel-quiet rounded-[24px] p-4">
-          <p className="text-sm text-on-surface-variant">Fraud model signal</p>
+          <p className="text-sm text-on-surface-variant">Review checks</p>
           <p className="mt-2 text-lg font-semibold text-primary">
             {fraudModel.fraud_probability !== undefined
               ? `${Math.round(Number(fraudModel.fraud_probability || 0) * 100)}% suspicious`
@@ -100,25 +104,26 @@ export default function ClaimDetailPanel({ claim }) {
           </p>
           {Array.isArray(fraudModel.top_factors) && fraudModel.top_factors.length ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {fraudModel.top_factors.slice(0, 4).map((factor) => (
-                <span key={factor.factor || factor.label} className="pill" style={{ background: "rgba(120,53,0,0.3)", color: "#f4a135" }}>
-                  {factor.label || humanizeSlug(factor.factor)}
+              {workerFactors.map((factor) => (
+                <span key={factor} className="pill" style={{ background: "rgba(120,53,0,0.3)", color: "#f4a135" }}>
+                  {factor}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-sm leading-6 text-on-surface-variant">No elevated fraud factors on this claim.</p>
+            <p className="mt-3 text-sm leading-6 text-on-surface-variant">No elevated review checks on this claim.</p>
           )}
         </div>
         <div className="panel-quiet rounded-[24px] p-4">
           <p className="text-sm text-on-surface-variant">Worker explanation</p>
           <p className="mt-2 text-sm leading-7 text-on-surface">
-            {claim.status === "approved"
-              ? "This payout protects lost net earning capacity, not gross billing. Avoided trip costs are removed before the final amount is credited."
-              : claim.status === "delayed"
-                ? "This incident matched policy coverage, but the review path stayed open because fraud or confidence signals were not clean enough for zero-touch approval."
-                : "The claim was stopped because the combined disruption, confidence, trust, or fraud signals did not support a payout."}
+            {workerClaimNarrative(claim)}
           </p>
+          {pattern ? (
+            <p className="mt-3 text-sm leading-6 text-on-surface-variant">
+              Review pattern: <span className="font-semibold text-primary">{patternNarrative.adminLabel}</span>
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -130,13 +135,13 @@ export default function ClaimDetailPanel({ claim }) {
           <p className="mt-2 text-sm leading-7 text-on-surface">{renderTriggerList(coveredTriggers)}</p>
         </div>
         <div className="panel-quiet rounded-[24px] p-4">
-          <p className="text-sm text-on-surface-variant">Score breakdown</p>
+          <p className="text-sm text-on-surface-variant">How RideShield weighed this claim</p>
           <div className="mt-2 grid gap-2 text-sm text-on-surface">
-            <p>Disruption component: {formatScore(components.disruption_component)}</p>
-            <p>Confidence component: {formatScore(components.confidence_component)}</p>
-            <p>Fraud component: {formatScore(components.fraud_component)}</p>
-            <p>Trust component: {formatScore(components.trust_component)}</p>
-            <p>Flag penalty: {formatScore(components.flag_penalty)}</p>
+            <p>Disruption strength: {formatScore(components.disruption_component)}</p>
+            <p>Incident evidence: {formatScore(components.confidence_component)}</p>
+            <p>Fraud safety: {formatScore(components.fraud_component)}</p>
+            <p>Account trust: {formatScore(components.trust_component)}</p>
+            <p>Review pressure: {formatScore(components.flag_penalty)}</p>
           </div>
         </div>
       </div>

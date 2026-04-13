@@ -59,9 +59,11 @@ async def config_check(db: AsyncSession = Depends(get_db)):
     cities = await location_service.get_active_cities(db)
     city_map = await location_service.get_city_zone_map(db)
     shadow_diff_summary = await shadow_diff_writer.daily_summary(db)
+    signal_source_status = await signal_service.source_runtime_status(db)
     return {
         "simulation_mode": settings.SIMULATION_MODE,
         "signal_sources": signal_service.source_overview(),
+        "signal_source_status": signal_source_status,
         "signal_runtime": settings.signal_runtime_config,
         "provider_snapshot_persistence_enabled": settings.ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE,
         "shadow_diff_summary": shadow_diff_summary,

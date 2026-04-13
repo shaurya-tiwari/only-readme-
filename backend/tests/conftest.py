@@ -3,11 +3,13 @@ Test configuration and fixtures.
 """
 
 import os
+from uuid import uuid4
 
 os.environ["ENV"] = "test"
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://rideshield:rideshield123@localhost:5433/rideshield_test_db"
-os.environ["DATABASE_URL_SYNC"] = "postgresql://rideshield:rideshield123@localhost:5433/rideshield_test_db"
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://rideshield:rideshield123@localhost:5433/rideshield_work_test_db"
+os.environ["DATABASE_URL_SYNC"] = "postgresql://rideshield:rideshield123@localhost:5433/rideshield_work_test_db"
 os.environ["SESSION_SECRET"] = "rideshield-test-secret"
+os.environ["SESSION_COOKIE_SECURE"] = "false"
 os.environ["ADMIN_PASSWORD"] = "rideshield-test-admin-password"
 os.environ["ADMIN_USERNAME"] = "admin"
 
@@ -27,6 +29,7 @@ async def ensure_db():
     if "test" not in settings.DATABASE_URL.lower():
         raise RuntimeError(f"Refusing to drop non-test database: {settings.DATABASE_URL}")
 
+    await close_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -70,9 +73,10 @@ async def admin_cookies(client):
 
 @pytest.fixture
 def valid_worker_data():
+    phone_suffix = str(uuid4().int)[-10:]
     return {
         "name": "Test Worker",
-        "phone": "+919999999999",
+        "phone": f"+91{phone_suffix}",
         "password": "testworker123",
         "city": "delhi",
         "zone": "south_delhi",

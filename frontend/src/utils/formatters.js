@@ -102,12 +102,30 @@ export function statusPill(status) {
     approved:  "badge-active",
     completed: "badge-active",
     active:    "badge-active",
+    processing:"badge-guarded",
     delayed:   "badge-pending",
     pending:   "badge-pending",
+    failed:    "badge-error",
     rejected:  "badge-error",
   };
 
   return clsx("pill", styles[status] || "bg-surface-container-high text-on-surface-variant");
+}
+
+export function decisionConfidenceCopy(band, claimStatus) {
+  if (band === "high") {
+    return "High confidence approval";
+  }
+  if (band === "moderate") {
+    return claimStatus === "delayed" ? "Moderate confidence review" : "Moderate confidence decision";
+  }
+  if (band === "low") {
+    return "Needs manual review";
+  }
+  if (claimStatus === "delayed") {
+    return "Needs manual review";
+  }
+  return "Decision confidence pending";
 }
 
 export function riskLabel(score) {

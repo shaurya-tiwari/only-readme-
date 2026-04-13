@@ -86,6 +86,13 @@ Rule:
    - source comparison and contamination should be checked before any calibration conclusion is treated as truth
    - historical rows should be reannotated against the current policy before they are treated as structurally current evidence
 
+11. Do not let realism research consume the demo plan.
+   - simulation realism should improve until it is directionally trustworthy
+   - but hackathon value still comes from:
+     - clear product behavior
+     - believable live signals
+     - explainable zero-touch automation
+
 ## Execution Order
 
 Phase 3 should be completed in the following order:
@@ -581,6 +588,7 @@ Keep the Phase 3 engine fed with enough diverse traffic to make replay, calibrat
 - gray-band behavior is split into explicit districts before broader stress experiments are trusted
 - experiment reports can block themselves when realism or promotion-contract checks fail
 - source behavior must stay close enough to baseline before broad synthetic runs are treated as credible
+- demo-facing work should resume once realism becomes directionally trustworthy rather than waiting for perfect simulation
 
 ### Promotion
 

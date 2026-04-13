@@ -83,6 +83,75 @@ async def test_payout_executor_does_not_overwrite_claim_final_payout():
 
 
 @pytest.mark.asyncio
+async def test_payout_executor_marks_failed_status_when_transfer_errors(monkeypatch):
+    now = utc_now_naive()
+
+    async with async_session_factory() as db:
+        worker = Worker(
+            name="Failed Payout Worker",
+            phone="+919100000021",
+            city="delhi",
+            zone="south_delhi",
+            platform="zomato",
+            consent_given=True,
+            status="active",
+        )
+        db.add(worker)
+        await db.flush()
+
+        policy = Policy(
+            worker_id=worker.id,
+            plan_name="smart_protect",
+            plan_display_name="Smart Protect",
+            base_price=Decimal("39.00"),
+            plan_factor=Decimal("1.5"),
+            risk_score_at_purchase=Decimal("0.500"),
+            weekly_premium=Decimal("39.00"),
+            coverage_cap=Decimal("600.00"),
+            triggers_covered=["rain"],
+            status="active",
+            activates_at=now - timedelta(hours=1),
+            expires_at=now + timedelta(days=7),
+        )
+        event = Event(
+            event_type="rain",
+            zone="south_delhi",
+            city="delhi",
+            started_at=now - timedelta(hours=2),
+            status="active",
+        )
+        db.add_all([policy, event])
+        await db.flush()
+
+        claim = Claim(
+            worker_id=worker.id,
+            policy_id=policy.id,
+            event_id=event.id,
+            trigger_type="rain",
+            calculated_payout=Decimal("450.00"),
+            final_payout=Decimal("300.00"),
+            status="approved",
+        )
+        db.add(claim)
+        await db.flush()
+
+        monkeypatch.setattr(
+            payout_executor,
+            "_simulate_transfer",
+            lambda plan_name: (_ for _ in ()).throw(RuntimeError("simulated transfer error")),
+        )
+
+        result = await payout_executor.execute(db, claim, worker, policy.plan_name, 450.0)
+        await db.commit()
+
+        payout = (await db.execute(select(Payout).where(Payout.claim_id == claim.id))).scalar_one()
+
+    assert result["status"] == "failed"
+    assert payout.status == "failed"
+    assert payout.transaction_id is None
+
+
+@pytest.mark.asyncio
 async def test_manual_claim_resolution_prefers_final_payout(client, admin_cookies, monkeypatch):
     register_response = await client.post(
         "/api/workers/register",
@@ -151,6 +220,80 @@ async def test_manual_claim_resolution_prefers_final_payout(client, admin_cookie
     assert response.status_code == 200
     assert captured["amount"] == 300.0
     assert response.json()["claim"]["status"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_manual_claim_resolution_keeps_claim_approved_when_payout_fails(client, admin_cookies, monkeypatch):
+    register_response = await client.post(
+        "/api/workers/register",
+        json={
+            "name": "Manual Fail Worker",
+            "phone": "+919100000022",
+            "password": "manualreview123",
+            "city": "delhi",
+            "zone": "south_delhi",
+            "platform": "zomato",
+            "self_reported_income": 900,
+            "working_hours": 9,
+            "consent_given": True,
+        },
+    )
+    worker_id = register_response.json()["worker_id"]
+
+    create_policy_response = await client.post(
+        "/api/policies/create",
+        json={"worker_id": worker_id, "plan_name": "smart_protect"},
+    )
+    assert create_policy_response.status_code == 201
+
+    async def exploding_execute(db, claim, worker, plan_name, amount):
+        raise RuntimeError("manual resolution payout failure")
+
+    monkeypatch.setattr("backend.api.claims.payout_executor.execute", exploding_execute)
+
+    now = utc_now_naive()
+    async with async_session_factory() as db:
+        worker = (await db.execute(select(Worker).where(Worker.phone == "+919100000022"))).scalar_one()
+        policy = (await db.execute(select(Policy).where(Policy.worker_id == worker.id))).scalar_one()
+        event = Event(
+            event_type="rain",
+            zone="south_delhi",
+            city="delhi",
+            started_at=now - timedelta(hours=2),
+            status="active",
+        )
+        db.add(event)
+        await db.flush()
+
+        claim = Claim(
+            worker_id=worker.id,
+            policy_id=policy.id,
+            event_id=event.id,
+            trigger_type="rain",
+            calculated_payout=Decimal("500.00"),
+            final_payout=Decimal("300.00"),
+            status="delayed",
+        )
+        db.add(claim)
+        await db.commit()
+        claim_id = claim.id
+
+    response = await client.post(
+        f"/api/claims/resolve/{claim_id}",
+        json={"decision": "approve", "reviewed_by": "test_admin"},
+        cookies=admin_cookies,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["claim"]["status"] == "approved"
+    assert response.json()["payout"]["status"] == "failed"
+
+    async with async_session_factory() as db:
+        payout = (await db.execute(select(Payout).where(Payout.claim_id == claim_id))).scalar_one()
+        claim = (await db.execute(select(Claim).where(Claim.id == claim_id))).scalar_one()
+
+    assert claim.status == "approved"
+    assert payout.status == "failed"
 
 
 @pytest.mark.asyncio

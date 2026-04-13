@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
@@ -12,8 +13,10 @@ from backend.core.shadow_diff_service import shadow_diff_service
 from backend.core.shadow_diff_writer import shadow_diff_writer
 from backend.core.signal_aggregator import signal_aggregator
 from backend.core.snapshot_writer import snapshot_writer
+from backend.db.models import SignalSnapshot
 from backend.providers.base import NormalizedSignalSnapshot
 from backend.providers.registry import provider_registry
+from backend.utils.time import utc_now_naive
 
 
 class SignalService:
@@ -69,6 +72,37 @@ class SignalService:
 
     def source_overview(self) -> dict[str, str]:
         return provider_registry.source_overview()
+
+    async def source_runtime_status(self, db: AsyncSession) -> dict[str, dict[str, Any]]:
+        now = utc_now_naive()
+        status: dict[str, dict[str, Any]] = {}
+
+        for signal_type in self.SIGNAL_TYPES:
+            latest_snapshot = (
+                await db.execute(
+                    select(SignalSnapshot)
+                    .where(SignalSnapshot.signal_type == signal_type)
+                    .order_by(SignalSnapshot.captured_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+
+            age_seconds = None
+            if latest_snapshot is not None:
+                age_seconds = max(0, int((now - latest_snapshot.captured_at).total_seconds()))
+
+            status[signal_type] = {
+                "configured_source": provider_registry.configured_source(signal_type),
+                "latest_provider": latest_snapshot.provider if latest_snapshot else None,
+                "source_mode": latest_snapshot.source_mode if latest_snapshot else settings.SIGNAL_SOURCE_MODE,
+                "captured_at": latest_snapshot.captured_at.isoformat() if latest_snapshot else None,
+                "data_age_seconds": age_seconds,
+                "latency_ms": latest_snapshot.latency_ms if latest_snapshot else None,
+                "is_fallback": bool(latest_snapshot.is_fallback) if latest_snapshot else False,
+                "quality_score": float(latest_snapshot.quality_score) if latest_snapshot and latest_snapshot.quality_score is not None else None,
+            }
+
+        return status
 
 
 signal_service = SignalService()

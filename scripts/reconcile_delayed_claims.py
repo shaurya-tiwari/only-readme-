@@ -6,10 +6,17 @@ import argparse
 import asyncio
 from datetime import timedelta
 from decimal import Decimal
+from pathlib import Path
+import sys
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.core.decision_memory import record_claim_resolution
 from backend.core.decision_engine import decision_engine
 from backend.core.payout_executor import payout_executor
 from backend.database import async_session_factory
@@ -37,7 +44,7 @@ async def reconcile_delayed_claims(*, apply_changes: bool, days: int, limit: int
     async with async_session_factory() as db:
         query = (
             select(Claim)
-            .options(selectinload(Claim.worker), selectinload(Claim.policy), selectinload(Claim.payout))
+            .options(selectinload(Claim.worker), selectinload(Claim.policy), selectinload(Claim.payout), selectinload(Claim.event))
             .where(Claim.status == "delayed", Claim.created_at >= cutoff)
             .order_by(Claim.created_at.desc())
         )
@@ -127,6 +134,19 @@ async def reconcile_delayed_claims(*, apply_changes: bool, days: int, limit: int
                         "reason": "Current policy now approves this previously delayed claim.",
                     },
                 )
+            )
+            await record_claim_resolution(
+                db=db,
+                claim=claim,
+                event=claim.event,
+                decision_source="system_backfill",
+                reviewed_by="system_backfill",
+                review_reason="Current policy now approves this previously delayed claim.",
+                label_source="policy_backfill",
+                resolution_payload={
+                    "decision": "approve",
+                    "backfill_reason": "approved_under_current_policy",
+                },
             )
             applied += 1
 

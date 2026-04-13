@@ -99,7 +99,7 @@ def train_risk_model(output_dir: str = "backend/ml/artifacts", use_gpu: bool = T
     print("--------------------------\n")
 
     metadata = {
-        "version": "risk-model-v1",
+        "version": "risk-model-v2",
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "model_type": "XGBoost" if HAS_XGBOOST else "GradientBoosting",
         "gpu_enabled": use_gpu and HAS_XGBOOST,

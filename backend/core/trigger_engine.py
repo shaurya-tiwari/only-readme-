@@ -113,6 +113,9 @@ class TriggerEngine:
         event_confidence: float,
         thresholds: Dict | None = None,
         demo_run_id: str | None = None,
+        traffic_source: str = "baseline",
+        scenario_name: str | None = None,
+        pressure_profile: str | None = None,
     ) -> Tuple[List[Event], int, int]:
         now = utc_now_naive()
         hour_start = now.replace(minute=0, second=0, microsecond=0)
@@ -163,6 +166,12 @@ class TriggerEngine:
                     **trigger_details,
                 },
                 "signals_snapshot": {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))},
+                "traffic_source": traffic_source,
+                "traffic_sources_seen": sorted(
+                    set(((existing.metadata_json or {}).get("traffic_sources_seen") or []) + [traffic_source])
+                ),
+                "scenario_name": scenario_name,
+                "pressure_profile": pressure_profile,
             }
             db.add(
                 AuditLog(
@@ -200,6 +209,10 @@ class TriggerEngine:
                 "trigger_details": trigger_details,
                 "created_by": "trigger_engine",
                 "demo_run_id": demo_run_id,
+                "traffic_source": traffic_source,
+                "traffic_sources_seen": [traffic_source],
+                "scenario_name": scenario_name,
+                "pressure_profile": pressure_profile,
             },
         )
         db.add(event)

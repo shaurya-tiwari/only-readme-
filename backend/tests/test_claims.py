@@ -131,6 +131,8 @@ async def test_review_queue_and_manual_resolution_flow(client, valid_worker_data
     assert review_queue_response.status_code == 200
     queue_data = review_queue_response.json()
     assert queue_data["total_pending"] >= 1
+    assert "high_load_mode" in queue_data
+    assert "high_load_threshold" in queue_data
     review_claim = next(claim for claim in queue_data["claims"] if claim["worker_id"] == worker_id)
     assert "urgency_score" in review_claim
     assert "urgency_band" in review_claim

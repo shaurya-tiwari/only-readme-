@@ -18,6 +18,6 @@ def test_risk_model_service_loads_trained_artifact(tmp_path):
     result = service.score({"city": "mumbai", "month": 7, "zone_profile_risk": 0.8, "incidents_7d": 6})
     assert result["fallback_used"] is False
     assert 0 <= result["risk_score"] <= 1
-    assert result["model_version"] == "risk-model-v1"
+    assert result["model_version"] == "risk-model-v2"
     assert len(result["explanation"]) > 0
 

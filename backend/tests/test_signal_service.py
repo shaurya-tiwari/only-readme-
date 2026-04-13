@@ -12,6 +12,8 @@ from backend.core.signal_service import signal_service
 from backend.core.snapshot_writer import snapshot_writer
 from backend.database import async_session_factory
 from backend.db.models import ShadowSignalDiff, SignalSnapshot
+from backend.providers.aqi import RealAQIProvider
+from backend.providers.weather import RealWeatherProvider
 from backend.utils.time import utc_now_naive
 
 
@@ -98,3 +100,75 @@ async def test_signal_service_persists_shadow_diffs_and_prunes_stale_records(mon
     assert {snapshot.signal_type for snapshot in snapshots} == {"weather", "aqi", "traffic", "platform"}
     assert len(diffs) == 4
     assert {diff.signal_type for diff in diffs} == {"weather", "aqi", "traffic", "platform"}
+
+
+@pytest.mark.asyncio
+async def test_signal_service_supports_real_weather_with_safe_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "SIGNAL_SOURCE_MODE", "real")
+    monkeypatch.setattr(settings, "WEATHER_SOURCE", "real")
+    monkeypatch.setattr(settings, "AQI_SOURCE", "mock")
+    monkeypatch.setattr(settings, "TRAFFIC_SOURCE", "mock")
+    monkeypatch.setattr(settings, "PLATFORM_SOURCE", "mock")
+
+    async def fake_fetch(self, zone: str, city: str):
+        return (
+            {
+                "rain": {"1h": 9.0},
+                "main": {"temp": 29.4},
+                "weather": [{"main": "Rain"}],
+            },
+            145,
+            "weather-live-1",
+        )
+
+    monkeypatch.setattr(RealWeatherProvider, "_fetch_openweather_payload", fake_fetch)
+
+    async with async_session_factory() as session:
+        payload = await signal_service.fetch_zone_snapshot(session, "south_delhi", "delhi")
+        snapshots = (await session.execute(select(SignalSnapshot))).scalars().all()
+
+    weather_snapshot = next(snapshot for snapshot in snapshots if snapshot.signal_type == "weather")
+    assert payload["source_mode"] == "real"
+    assert payload["sources"]["weather"] == "openweather"
+    assert payload["rain"] == 9.0
+    assert payload["heat"] == 29.4
+    assert weather_snapshot.provider == "openweather"
+    assert weather_snapshot.source_mode == "real"
+    assert weather_snapshot.is_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_signal_service_supports_real_aqi_with_safe_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "SIGNAL_SOURCE_MODE", "real")
+    monkeypatch.setattr(settings, "WEATHER_SOURCE", "mock")
+    monkeypatch.setattr(settings, "AQI_SOURCE", "real")
+    monkeypatch.setattr(settings, "TRAFFIC_SOURCE", "mock")
+    monkeypatch.setattr(settings, "PLATFORM_SOURCE", "mock")
+
+    async def fake_fetch(self, zone: str, city: str):
+        return (
+            {
+                "list": [
+                    {
+                        "main": {"aqi": 5},
+                        "components": {"pm2_5": 142.5, "pm10": 188.4},
+                    }
+                ]
+            },
+            167,
+            "aqi-live-1",
+        )
+
+    monkeypatch.setattr(RealAQIProvider, "_fetch_openweather_payload", fake_fetch)
+
+    async with async_session_factory() as session:
+        payload = await signal_service.fetch_zone_snapshot(session, "south_delhi", "delhi")
+        snapshots = (await session.execute(select(SignalSnapshot))).scalars().all()
+
+    aqi_snapshot = next(snapshot for snapshot in snapshots if snapshot.signal_type == "aqi")
+    assert payload["source_mode"] == "real"
+    assert payload["sources"]["aqi"] == "openweather_air"
+    assert payload["aqi"] == 300
+    assert aqi_snapshot.provider == "openweather_air"
+    assert aqi_snapshot.source_mode == "real"
+    assert aqi_snapshot.is_fallback is False

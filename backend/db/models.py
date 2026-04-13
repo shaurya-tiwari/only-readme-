@@ -165,6 +165,7 @@ class Claim(Base):
     policy = relationship("Policy", back_populates="claims")
     event = relationship("Event", back_populates="claims")
     payout = relationship("Payout", back_populates="claim", uselist=False, lazy="selectin")
+    decision_logs = relationship("DecisionLog", back_populates="claim", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("worker_id", "event_id", "trigger_type", name="uq_claim_dedup"),
@@ -251,6 +252,48 @@ class AuditLog(Base):
 
     def __repr__(self):
         return f"<AuditLog {self.action} on {self.entity_type}>"
+
+
+class DecisionLog(Base):
+    """Append-only decision memory for replay, analytics, and retraining."""
+    __tablename__ = "decision_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid)
+    claim_id = Column(UUID(as_uuid=True), ForeignKey("claims.id"), nullable=False, index=True)
+    worker_id = Column(UUID(as_uuid=True), ForeignKey("workers.id"), nullable=False, index=True)
+    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id"), nullable=True, index=True)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=True, index=True)
+    lifecycle_stage = Column(String(50), nullable=False, index=True)
+    decision_source = Column(String(50), nullable=False, index=True)
+    system_decision = Column(String(20), nullable=True, index=True)
+    resulting_status = Column(String(20), nullable=False, index=True)
+    final_label = Column(String(20), nullable=True, index=True)
+    label_source = Column(String(50), nullable=True)
+    review_reason = Column(Text, nullable=True)
+    reviewed_by = Column(String(100), nullable=True)
+    payout_amount = Column(Numeric(10, 2), nullable=True)
+    review_wait_hours = Column(Numeric(6, 2), nullable=True)
+    fraud_score = Column(Numeric(4, 3), nullable=True)
+    trust_score = Column(Numeric(4, 3), nullable=True)
+    final_score = Column(Numeric(4, 3), nullable=True)
+    decision_confidence = Column(Numeric(4, 3), nullable=True)
+    model_versions = Column(JSONB, nullable=True)
+    decision_policy_version = Column(String(50), nullable=False)
+    signal_snapshot_refs = Column(JSONB, nullable=True)
+    feature_snapshot = Column(JSONB, nullable=False)
+    output_snapshot = Column(JSONB, nullable=False)
+    context_snapshot = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive, index=True)
+
+    claim = relationship("Claim", back_populates="decision_logs", lazy="selectin")
+
+    __table_args__ = (
+        Index("idx_decision_log_claim_stage_time", "claim_id", "lifecycle_stage", "created_at"),
+        Index("idx_decision_log_worker_time", "worker_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<DecisionLog {self.lifecycle_stage} {self.claim_id}>"
 
 
 class SignalSnapshot(Base):

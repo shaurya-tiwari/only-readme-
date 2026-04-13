@@ -8,17 +8,27 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker
 )
-from sqlalchemy.orm import DeclarativeBase 
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 from backend.config import settings
+
+
+engine_kwargs = {
+    "echo": settings.SQL_ECHO,
+    "pool_pre_ping": True,
+}
+
+if settings.ENV == "test":
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
 
 
 # Async engine for FastAPI
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.SQL_ECHO,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True
+    **engine_kwargs,
 )
 
 # Session factory

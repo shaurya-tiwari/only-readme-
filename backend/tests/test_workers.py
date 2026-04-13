@@ -74,7 +74,7 @@ async def test_register_invalid_city_fails():
             "name": "Invalid City Worker",
             "phone": "+911234567892",
             "password": "invalidcity123",
-            "city": "kolkata",
+            "city": "jaipur",
             "platform": "zomato",
             "self_reported_income": 800,
             "working_hours": 8,

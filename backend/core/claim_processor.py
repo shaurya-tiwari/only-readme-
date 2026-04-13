@@ -9,6 +9,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
+from backend.core.decision_memory import record_claim_decision
 from backend.core.decision_engine import decision_engine
 from backend.core.fraud_detector import fraud_detector
 from backend.core.income_verifier import income_verifier
@@ -25,6 +26,14 @@ from simulations.weather_mock import weather_simulator
 logger = logging.getLogger("rideshield.cycles")
 
 class ClaimProcessor:
+    TRAFFIC_SOURCES = {"baseline", "simulation_pressure", "scenario", "replay_amplified"}
+
+    def _normalize_traffic_source(self, traffic_source: str | None, scenario: str | None) -> str:
+        normalized = str(traffic_source or ("scenario" if scenario else "baseline")).strip().lower()
+        if normalized not in self.TRAFFIC_SOURCES:
+            raise ValueError(f"Unsupported traffic_source '{normalized}'")
+        return normalized
+
     async def _review_feedback_bias(
         self,
         db: AsyncSession,
@@ -113,14 +122,19 @@ class ClaimProcessor:
         city: str = "delhi",
         scenario: Optional[str] = None,
         demo_run_id: Optional[str] = None,
+        traffic_source: Optional[str] = None,
+        pressure_profile: Optional[str] = None,
     ) -> Dict:
         if not zones:
             zones = [zone.slug for zone in await location_service.get_active_zones(db, city_slug=city)]
 
+        normalized_traffic_source = self._normalize_traffic_source(traffic_source, scenario)
         results = {
             "cycle_timestamp": utc_now_naive().isoformat(),
             "city": city,
             "scenario": scenario or "live",
+            "traffic_source": normalized_traffic_source,
+            "pressure_profile": pressure_profile,
             "demo_run_id": demo_run_id,
             "zones_checked": zones,
             "triggers_fired": {},
@@ -148,7 +162,15 @@ class ClaimProcessor:
             )
 
             for zone in zones:
-                zone_result = await self._process_zone(db, zone, city, demo_run_id=demo_run_id)
+                zone_result = await self._process_zone(
+                    db,
+                    zone,
+                    city,
+                    demo_run_id=demo_run_id,
+                    scenario=scenario,
+                    traffic_source=normalized_traffic_source,
+                    pressure_profile=pressure_profile,
+                )
                 results["details"].append(zone_result)
                 results["triggers_fired"][zone] = zone_result["triggers_fired"]
                 results["events_created"] += zone_result["events_created"]
@@ -179,9 +201,20 @@ class ClaimProcessor:
             if scenario:
                 self._set_scenario("normal")
 
-    async def _process_zone(self, db: AsyncSession, zone: str, city: str, demo_run_id: Optional[str] = None) -> Dict:
+    async def _process_zone(
+        self,
+        db: AsyncSession,
+        zone: str,
+        city: str,
+        demo_run_id: Optional[str] = None,
+        scenario: Optional[str] = None,
+        traffic_source: str = "baseline",
+        pressure_profile: str | None = None,
+    ) -> Dict:
         zone_result = {
             "zone": zone,
+            "traffic_source": traffic_source,
+            "pressure_profile": pressure_profile,
             "signals": {},
             "triggers_fired": [],
             "events_created": 0,
@@ -221,7 +254,7 @@ class ClaimProcessor:
         event_confidence = trigger_engine.calculate_event_confidence(signals, fired, zone)
         events, created, extended = await trigger_engine.get_or_create_event(
             db, zone_record, fired, signals, disruption_score, event_confidence, thresholds=thresholds
-            , demo_run_id=demo_run_id
+            , demo_run_id=demo_run_id, traffic_source=traffic_source, scenario_name=scenario, pressure_profile=pressure_profile
         )
         zone_result["events_created"] = created
         zone_result["events_extended"] = extended
@@ -240,6 +273,7 @@ class ClaimProcessor:
                         trust_score=worker_info["trust_score"],
                         covered_triggers=worker_info["covered_triggers"],
                         fired_triggers=worker_info["fired_triggers"],
+                        traffic_source=traffic_source,
                     )
                 except Exception as exc:
                     logger.warning(
@@ -295,6 +329,7 @@ class ClaimProcessor:
         trust_score: float,
         covered_triggers: list[str],
         fired_triggers: list[str],
+        traffic_source: str = "baseline",
     ) -> Dict:
         result = {
             "worker_id": str(worker.id),
@@ -395,6 +430,7 @@ class ClaimProcessor:
         result["status"] = decision_result["decision"]
         decision_payload = {
             **decision_result,
+            "traffic_source": traffic_source,
             "review_deadline": decision_result["review_deadline"].isoformat()
             if decision_result["review_deadline"]
             else None,
@@ -450,6 +486,17 @@ class ClaimProcessor:
 
         db.add(claim)
         await db.flush()
+        await record_claim_decision(
+            db=db,
+            claim=claim,
+            worker=worker,
+            policy=policy,
+            event=event,
+            fraud_result=fraud_result,
+            payout_calc=payout_calc,
+            feedback_result=review_feedback,
+            traffic_source=traffic_source,
+        )
         db.add(
             AuditLog(
                 entity_type="claim",
@@ -474,7 +521,17 @@ class ClaimProcessor:
         )
 
         if decision_result["decision"] == "approved":
-            payout_result = await payout_executor.execute(db, claim, worker, policy.plan_name, payout_calc["final_payout"])
+            try:
+                payout_result = await payout_executor.execute(db, claim, worker, policy.plan_name, payout_calc["final_payout"])
+            except Exception as exc:
+                payout_result = await payout_executor.record_failed(
+                    db,
+                    claim,
+                    worker,
+                    policy.plan_name,
+                    payout_calc["final_payout"],
+                    str(exc),
+                )
             result["payout_amount"] = payout_calc["final_payout"]
             result["details"]["payout"] = payout_result
             await self._update_trust_score(db, worker, approved=True)

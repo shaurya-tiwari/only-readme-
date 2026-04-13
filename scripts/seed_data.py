@@ -16,8 +16,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.core.premium_calculator import premium_calculator
 from backend.core.risk_scorer import risk_scorer
-from backend.core.location_service import location_service
+from backend.core.location_service import ZONE_CENTROIDS, location_service
 from backend.core.password_auth import hash_password
+from backend.config import settings
 from backend.database import async_session_factory, init_db
 from backend.db.models import AuditLog, Policy, TrustScore, Worker, WorkerActivity
 
@@ -395,12 +396,100 @@ WORKERS = [
     },
 ]
 
+GENERATED_WORKERS_PER_ZONE = 8
+ACTIVE_WORKERS_PER_ZONE = 6
+CITY_PLATFORM_ROTATION = {
+    "delhi": ["zomato", "swiggy", "blinkit"],
+    "mumbai": ["swiggy", "zomato", "blinkit"],
+    "bengaluru": ["swiggy", "zepto", "zomato"],
+    "chennai": ["swiggy", "zomato"],
+    "hyderabad": ["swiggy", "zomato", "blinkit"],
+    "pune": ["zomato", "swiggy", "blinkit"],
+    "kolkata": ["zomato", "swiggy"],
+}
+
+
+def _generated_phone(index: int) -> str:
+    return f"+91{8800000000 + index:010d}"
+
+
+def _activity_for_zone(zone_slug: str, worker_idx: int) -> list[dict]:
+    centroid_lat, centroid_lon = ZONE_CENTROIDS.get(zone_slug, (Decimal("0"), Decimal("0")))
+    logs = []
+    for offset_idx in range(4):
+        logs.append(
+            {
+                "zone": zone_slug,
+                "latitude": centroid_lat + Decimal(str(0.001 * (offset_idx + worker_idx % 3))),
+                "longitude": centroid_lon + Decimal(str(0.0015 * (offset_idx + (worker_idx % 2)))),
+                "speed_kmh": Decimal(str(14 + ((worker_idx + offset_idx) % 7) * 2)),
+                "has_delivery_stop": offset_idx % 2 == 0,
+                "recorded_offset": timedelta(hours=4) - timedelta(minutes=18 * offset_idx),
+            }
+        )
+    return logs
+
+
+def _generated_worker_specs() -> list[dict]:
+    generated: list[dict] = []
+    global_index = 0
+    plan_cycle = ["basic_protect", "smart_protect", "assured_plan", "pro_max"]
+
+    for city, profile in settings.CITY_RISK_PROFILES.items():
+        platforms = CITY_PLATFORM_ROTATION.get(city, ["zomato", "swiggy"])
+        base_income = Decimal(str(profile["avg_daily_income"]))
+
+        for zone_index, zone_slug in enumerate(profile.get("zones", [])):
+            for worker_idx in range(GENERATED_WORKERS_PER_ZONE):
+                global_index += 1
+                is_active_policy = worker_idx < ACTIVE_WORKERS_PER_ZONE
+                plan_name = plan_cycle[(zone_index + worker_idx) % len(plan_cycle)]
+                plan_definition = settings.PLAN_DEFINITIONS[plan_name]
+                trust_seed = min(0.92, 0.18 + ((worker_idx % 6) * 0.11) + (zone_index * 0.01))
+                active_claim_seed = 3 + (worker_idx % 9)
+                approved_seed = max(0, active_claim_seed - (worker_idx % 3))
+
+                generated.append(
+                    {
+                        "key": f"{city}_{zone_slug}_{worker_idx}",
+                        "label": f"{city.replace('_', ' ').title()} {zone_slug.replace('_', ' ').title()} Rider {worker_idx + 1}",
+                        "phone": _generated_phone(global_index),
+                        "password": f"demo{global_index:04d}",
+                        "city": city,
+                        "zone": zone_slug,
+                        "platform": platforms[worker_idx % len(platforms)],
+                        "income": base_income + Decimal(str(((worker_idx % 5) - 2) * 35)),
+                        "hours": Decimal(str(7 + (worker_idx % 4))),
+                        "consent_days": 18 + worker_idx * 4 + zone_index * 2,
+                        "trust": {
+                            "score": Decimal(f"{trust_seed:.3f}"),
+                            "total_claims": active_claim_seed,
+                            "approved_claims": approved_seed,
+                            "fraud_flags": worker_idx % 2,
+                            "account_age_days": 18 + worker_idx * 6 + zone_index * 3,
+                            "device_stability": Decimal(f"{min(0.99, 0.58 + (worker_idx % 5) * 0.08):.3f}"),
+                        },
+                        "plan": {
+                            "plan_name": plan_name,
+                            "status": "active" if is_active_policy else "pending",
+                            "purchased_offset": timedelta(hours=36 + worker_idx * 3 + zone_index),
+                            "activates_offset": timedelta(hours=4 + (worker_idx % 5)) if is_active_policy else -timedelta(hours=20 - (worker_idx % 6)),
+                            "expires_offset": timedelta(days=5 + (worker_idx % 3), hours=8 + (zone_index % 4)),
+                            "triggers": plan_definition["triggers_covered"],
+                            "base_price": Decimal(str(plan_definition["base_price"])),
+                            "plan_factor": Decimal(str(plan_definition["plan_factor"])),
+                            "coverage_cap": Decimal(str(plan_definition["coverage_cap"])),
+                        },
+                        "activity": _activity_for_zone(zone_slug, worker_idx) if is_active_policy else _activity_for_zone(zone_slug, worker_idx)[:2],
+                        "notes": "generated_active" if is_active_policy else "generated_pending",
+                    }
+                )
+
+    return generated
+
 
 def policy_display_name(plan_name: str) -> str:
-    return {
-        "smart_protect": "Smart Protect",
-        "assured_plan": "Assured Plan",
-    }.get(plan_name, plan_name.replace("_", " ").title())
+    return settings.PLAN_DEFINITIONS.get(plan_name, {}).get("display_name", plan_name.replace("_", " ").title())
 
 
 async def upsert_worker(db, spec: dict, now: datetime):
@@ -526,7 +615,9 @@ async def seed():
         now = utc_now_naive()
         results = []
 
-        for spec in WORKERS:
+        all_workers = [*WORKERS, *_generated_worker_specs()]
+
+        for spec in all_workers:
             worker, zone_record, risk, created = await upsert_worker(db, spec, now)
             await upsert_trust_score(db, worker, spec["trust"], now)
             policy, premium = await upsert_policy(db, worker, spec, risk["risk_score"], now)
@@ -578,11 +669,15 @@ async def seed():
         print(f"   Pending policies: {sum(1 for row in results if row['policy_status'] == 'pending')}")
         print(f"   Activity logs refreshed: {sum(row['activity_count'] for row in results)}")
         print("\nWorker IDs for testing:")
-        for row in results:
+        for row in results[:20]:
             print(f"   {row['label']} ({row['notes']}): {row['worker_id']}")
+        if len(results) > 20:
+            print(f"   ... and {len(results) - 20} more seeded workers")
         print("\nWorker credentials for sign-in:")
-        for row in results:
+        for row in results[:20]:
             print(f"   {row['label']}: {row['phone']} / {row['password']}")
+        if len(results) > 20:
+            print(f"   ... and {len(results) - 20} more seeded credentials")
 
 
 if __name__ == "__main__":

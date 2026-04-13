@@ -4,6 +4,7 @@ import { AlertTriangle, Clock3, ShieldAlert } from "lucide-react";
 import { analyticsApi } from "../api/analytics";
 import { claimsApi } from "../api/claims";
 import { eventsApi } from "../api/events";
+import { healthApi } from "../api/health";
 import { locationsApi } from "../api/locations";
 import { payoutsApi } from "../api/payouts";
 import DisruptionMap from "../components/DisruptionMap";
@@ -15,7 +16,8 @@ import ModelHealthBadge from "../components/ModelHealthBadge";
 import NextDecisionPanel from "../components/NextDecisionPanel";
 import ReviewQueue from "../components/ReviewQueue";
 import { groupClaimsByIncident } from "../utils/claimGroups";
-import { formatCurrency, formatPercent, formatRelative, humanizeSlug } from "../utils/formatters";
+import { formatAudienceFactor, formatPolicyRule, formatPolicySurface } from "../utils/decisionNarrative";
+import { formatCurrency, formatDateTime, formatPercent, formatRelative, humanizeSlug } from "../utils/formatters";
 
 function forecastTone(band) {
   switch (band) {
@@ -75,6 +77,44 @@ function queuePressureState(totalPending, overdueCount, exposure) {
   };
 }
 
+function compactBar(share, tone = "bg-primary") {
+  return (
+    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+      <div
+        className={`h-full rounded-full transition-all ${tone}`}
+        style={{ width: `${Math.max(4, Math.min(100, Number(share || 0)))}%` }}
+      />
+    </div>
+  );
+}
+
+function sourceLabel(signalType, status) {
+  const signal = humanizeSlug(signalType);
+  if (!status) {
+    return `${signal} unavailable`;
+  }
+  if (status.is_fallback) {
+    return `Fallback ${signal.toLowerCase()}`;
+  }
+  if (status.configured_source === "real" || String(status.latest_provider || "").startsWith("openweather")) {
+    return `Live ${signal.toLowerCase()}`;
+  }
+  return `Mock ${signal.toLowerCase()}`;
+}
+
+function sourceTone(status) {
+  if (!status) {
+    return "badge-pending";
+  }
+  if (status.is_fallback) {
+    return "badge-pending";
+  }
+  if (status.configured_source === "real" || String(status.latest_provider || "").startsWith("openweather")) {
+    return "badge-active";
+  }
+  return "badge-guarded";
+}
+
 export default function AdminPanel() {
   const [selectedCity, setSelectedCity] = useState("all");
   const [selectedZone, setSelectedZone] = useState("all");
@@ -86,6 +126,7 @@ export default function AdminPanel() {
   const [queue, setQueue] = useState(null);
   const [events, setEvents] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [config, setConfig] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
 
   useEffect(() => {
@@ -110,19 +151,21 @@ export default function AdminPanel() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [claimsRes, payoutsRes, queueRes, eventsRes, historyRes, analyticsRes] = await Promise.all([
+      const [claimsRes, payoutsRes, queueRes, eventsRes, historyRes, analyticsRes, configRes] = await Promise.all([
         claimsApi.stats({ days: 14 }),
         payoutsApi.stats({ days: 14 }),
         claimsApi.queue(),
         eventsApi.active(),
         eventsApi.history({ days: 14, limit: 20 }),
         analyticsApi.adminOverview({ days: 14 }),
+        healthApi.getConfig(),
       ]);
       setClaimStats(claimsRes.data);
       setPayoutStats(payoutsRes.data);
       setQueue(queueRes.data);
       setEvents([...(eventsRes.data.events || []), ...(historyRes.data.events || []).slice(0, 6)]);
       setAnalytics(analyticsRes.data);
+      setConfig(configRes.data);
     } catch (err) {
       setLoadError(err?.response?.data?.detail || "Failed to load admin panel data.");
     } finally {
@@ -219,6 +262,15 @@ export default function AdminPanel() {
   const reviewDriverWindowHours = analytics?.review_driver_summary?.window_hours || 1;
   const reviewDriverSource = analytics?.review_driver_summary?.source || "active_queue";
   const reviewInsights = analytics?.review_driver_summary?.insights || {};
+  const falseReviewSummary = analytics?.false_review_pattern_summary;
+  const replaySummary = analytics?.policy_replay_summary;
+  const topFalseReviewPatterns = falseReviewSummary?.dominant_patterns || [];
+  const replayLift = replaySummary?.delayed_to_approved_count || 0;
+  const replayDrag = replaySummary?.approved_to_delayed_count || 0;
+  const topFalseReviewPattern = topFalseReviewPatterns[0];
+  const policyHealth = analytics?.policy_health_summary;
+  const trafficSourceCounts = analytics?.decision_memory_summary?.traffic_source_counts || {};
+  const signalSourceStatus = config?.signal_source_status || {};
 
   if (loading) {
     return <div className="panel p-8 text-center text-on-surface-variant">Loading admin panel...</div>;
@@ -281,13 +333,20 @@ export default function AdminPanel() {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className={`pill ${queuePressure.tone}`}>{queuePressure.label}</span>
+            {queue?.high_load_mode ? <span className="pill badge-pending">High load mode active</span> : null}
             <span className="pill-subtle">{filteredQueueIncidents.length} incidents</span>
             <span className="pill-subtle">{queueOverdueCount} overdue</span>
           </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-          <ReviewQueue claims={filteredQueueClaims} resolvingId={resolvingId} onResolve={handleResolve} />
+          <ReviewQueue
+            claims={filteredQueueClaims}
+            resolvingId={resolvingId}
+            onResolve={handleResolve}
+            highLoadMode={Boolean(queue?.high_load_mode)}
+            highLoadThreshold={queue?.high_load_threshold}
+          />
 
           <div className="space-y-6">
             <NextDecisionPanel incident={topIncident} />
@@ -423,11 +482,11 @@ export default function AdminPanel() {
                 topSystemDrivers.map((driver) => (
                   <div key={driver.label} className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-primary">{driver.label}</p>
+                      <p className="font-semibold text-primary">{formatAudienceFactor(driver.label, "admin")}</p>
                       <span className="pill-subtle">{driver.share}% of recent reviews</span>
                     </div>
                     <p className="mt-2 text-sm text-on-surface-variant">
-                      {driver.count} recent review incidents currently surface this driver.
+                      {driver.count} recent review incidents currently surface {formatAudienceFactor(driver.label, "admin")}.
                     </p>
                   </div>
                 ))
@@ -461,6 +520,131 @@ export default function AdminPanel() {
                 <p className="mt-2 text-xs text-on-surface-variant">
                   {analytics?.decision_health?.claim_total ?? 0} claims were evaluated in the current reporting window.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="context-panel p-6">
+            <div className="mb-5">
+              <p className="eyebrow">Signal source status</p>
+              <h3 className="mt-2 text-lg font-bold leading-tight text-primary">What data is live, mocked, or falling back</h3>
+              <p className="mt-3 text-xs leading-6 text-on-surface-variant">
+                Real-provider work should be visible to the operator. If a signal falls back, that should read as an explicit runtime state, not hidden infrastructure behavior.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {["weather", "aqi", "traffic", "platform"].map((signalType) => {
+                const status = signalSourceStatus[signalType];
+                return (
+                  <div key={signalType} className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-primary">{sourceLabel(signalType, status)}</p>
+                      <span className={`pill ${sourceTone(status)}`}>
+                        {status?.is_fallback ? "Fallback" : humanizeSlug(status?.configured_source || "unknown")}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-on-surface-variant">
+                      Provider {humanizeSlug(status?.latest_provider || status?.configured_source || "unknown")}
+                      {status?.latency_ms != null ? ` | ${status.latency_ms}ms` : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      {status?.captured_at ? `Last capture ${formatDateTime(status.captured_at)}` : "No captured snapshot yet."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="context-panel p-6">
+            <div className="mb-5">
+              <p className="eyebrow">Calibration watch</p>
+              <h3 className="mt-2 text-lg font-bold leading-tight text-primary">What current memory says should change</h3>
+              <p className="mt-3 text-xs leading-6 text-on-surface-variant">
+                This is the Phase 3 bridge between observed false reviews and safer zero-touch routing.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Replay lift</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{replayLift}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">
+                  Old delayed claims the current policy would now auto-approve.
+                </p>
+              </div>
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Replay drag</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{replayDrag}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">
+                  Previously approved claims the replay would now pull back into review.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-[18px] border border-primary/8 bg-surface-container-low/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-primary">False-review concentration</p>
+                <span className="pill-subtle">{falseReviewSummary?.false_review_count || 0} cases</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {Object.entries(falseReviewSummary?.score_band_distribution || {})
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 2)
+                  .map(([band, count]) => {
+                    const share = falseReviewSummary?.false_review_count
+                      ? Math.round((count / falseReviewSummary.false_review_count) * 100)
+                      : 0;
+                    return (
+                      <div key={band} className="rounded-[16px] border border-primary/6 bg-surface-container-high/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">{band.replaceAll("_", ".")}</p>
+                        <p className="mt-2 text-lg font-bold text-primary">{count}</p>
+                        <p className="text-xs text-on-surface-variant">{share}% of false reviews</p>
+                        {compactBar(share)}
+                      </div>
+                    );
+                  })}
+              </div>
+              {topFalseReviewPatterns[0] ? (
+                <p className="mt-4 text-sm leading-6 text-on-surface-variant">
+                  Dominant pattern:{" "}
+                  <span className="font-semibold text-primary">
+                    {topFalseReviewPattern.flags.length
+                      ? topFalseReviewPattern.flags.map(humanizeSlug).join(" + ")
+                      : "No flags"}
+                  </span>{" "}
+                  at {topFalseReviewPattern.share}% of observed false reviews.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="context-panel p-6">
+            <div className="mb-5">
+              <p className="eyebrow">Policy health</p>
+              <h3 className="mt-2 text-lg font-bold leading-tight text-primary">Which policy region is causing friction now</h3>
+              <p className="mt-3 text-xs leading-6 text-on-surface-variant">
+                Use this as an operator summary, not a raw engine dump. The goal is to see where review pressure is coming from without reading registry IDs.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Friction score</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{formatPercent(policyHealth?.friction_score)}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">False-review pressure across the current memory window.</p>
+              </div>
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Automation efficiency</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{formatPercent(policyHealth?.automation_efficiency)}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">How often the system approved without needing manual review.</p>
+              </div>
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Rule concentration</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{formatPercent(policyHealth?.rule_concentration)}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">Share of decisions dominated by the top firing rule.</p>
+              </div>
+              <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                <p className="text-sm text-on-surface-variant">Surface imbalance</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{formatPercent(policyHealth?.surface_imbalance)}</p>
+                <p className="mt-2 text-xs text-on-surface-variant">Share of routing dominated by one policy surface.</p>
               </div>
             </div>
           </div>
@@ -534,6 +718,83 @@ export default function AdminPanel() {
               {!forecastEntries.length ? (
                 <p className="text-sm text-on-surface-variant">No forecast entries match the current filters.</p>
               ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
+          <div className="context-panel p-6">
+            <div className="mb-4">
+              <p className="eyebrow">Top friction rules</p>
+              <h3 className="mt-2 text-lg font-bold text-primary">Rules causing review waste</h3>
+            </div>
+            <div className="space-y-3">
+              {(policyHealth?.top_friction_rules || []).length ? (
+                policyHealth.top_friction_rules.slice(0, 3).map((entry) => (
+                  <div key={entry.rule_id} className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-primary">{formatPolicyRule(entry.rule_id, "admin")}</p>
+                      <span className="pill-subtle">{formatPercent(entry.friction_rate)}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-on-surface-variant">
+                      {entry.false_review_count} false reviews across {entry.count} routed claims.
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-on-surface-variant">Rule friction will appear once more resolved history accumulates.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="context-panel p-6">
+            <div className="mb-4">
+              <p className="eyebrow">Top friction surfaces</p>
+              <h3 className="mt-2 text-lg font-bold text-primary">Policy regions that need sharper routing</h3>
+            </div>
+            <div className="space-y-3">
+              {(policyHealth?.top_friction_surfaces || []).length ? (
+                policyHealth.top_friction_surfaces.slice(0, 3).map((entry) => (
+                  <div key={entry.surface} className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-primary">{formatPolicySurface(entry.surface, "admin")}</p>
+                      <span className="pill-subtle">{formatPercent(entry.friction_rate)}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-on-surface-variant">
+                      {entry.false_review_count} false reviews across {entry.count} claim-created decisions.
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-on-surface-variant">Surface friction will appear once more replay evidence accumulates.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="context-panel p-6">
+            <div className="mb-4">
+              <p className="eyebrow">Evidence mix</p>
+              <h3 className="mt-2 text-lg font-bold text-primary">What kind of traffic shaped this reading</h3>
+            </div>
+            <div className="space-y-3">
+              {Object.entries(trafficSourceCounts)
+                .sort(([, a], [, b]) => Number(b) - Number(a))
+                .slice(0, 4)
+                .map(([source, count]) => {
+                  const share = analytics?.decision_memory_summary?.claim_created_rows
+                    ? Math.round((Number(count) / Number(analytics.decision_memory_summary.claim_created_rows)) * 100)
+                    : 0;
+                  return (
+                    <div key={source} className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-semibold text-primary">{humanizeSlug(source)}</p>
+                        <span className="pill-subtle">{share}%</span>
+                      </div>
+                      <p className="mt-2 text-sm text-on-surface-variant">{count} claim-created decisions in this source.</p>
+                      {compactBar(share, "bg-primary")}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>

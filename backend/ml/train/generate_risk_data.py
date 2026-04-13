@@ -18,7 +18,9 @@ def generate_risk_dataset(n_samples: int = 5000) -> pd.DataFrame:
     rows: list[dict] = []
     months = list(range(1, 13))  # All 12 months for better seasonal coverage
     
-    samples_per_combo = max(20, n_samples // (len(settings.CITY_RISK_PROFILES) * 8 * len(months)))
+    total_zones = sum(len(profile["zones"]) for profile in settings.CITY_RISK_PROFILES.values())
+    total_combos = total_zones * len(months)
+    samples_per_combo = max(1, n_samples // total_combos)
     
     for city, profile in settings.CITY_RISK_PROFILES.items():
         for zone_idx, zone in enumerate(profile["zones"]):

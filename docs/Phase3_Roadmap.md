@@ -20,6 +20,21 @@ The upgrade loop should be:
 
 Better models should come from better system memory, cleaner measurement, stronger explainability, and safer promotion rules, not from random threshold tweaking.
 
+Phase 3 also needs to solve a structural problem:
+- the system is already becoming smarter than its current organization
+- intelligence must now be made more understandable, more layered, and easier to promote safely
+
+That means the next upgrades are not only about APIs or better scoring. They are also about:
+- graded uncertainty behavior instead of one review fallback
+- scenario-level reasoning for clusters instead of one penalty bucket
+- policy structure instead of growing conditional sprawl
+- product translation that compresses meaning instead of exposing raw state
+
+Important operating reality:
+- a well-architected simulation can still starve if thresholds are realistic but signal inputs rarely cross them
+- without enough event and claim traffic, memory, replay, and calibration become underfed
+- Phase 3 therefore needs controlled stimulus, not only realistic baseline behavior
+
 ## Tier 1: Core Intelligence Backbone (Must Do)
 
 Tier 1 establishes the closed feedback loop required for any meaningful model improvement.
@@ -43,6 +58,33 @@ Additional work to add:
 - preserve frozen feature snapshots so later retraining does not depend on recomputed or mutated context
 - create replayable training datasets from resolved claims rather than rebuilding training rows from current state
 - add data-quality checks for missing features, contradictory labels, and stale context before any retraining step
+
+Why this matters operationally:
+- today, many borderline claims in the `0.40-0.60` score range still go to manual review
+- Wave 1 memory lets the system prove which of those were actually safe after human review
+- once enough similar delayed-but-legit rows exist, later waves can safely carve out new zero-touch lanes instead of lowering thresholds blindly
+
+Data discipline rule to add:
+- store and tag memory rows by evidence quality:
+  - `synthetic`
+  - `seeded`
+  - `manual_reviewed`
+  - later `organic`
+- calibration and promotion should trust `manual_reviewed` and `organic` evidence first
+- synthetic or seeded rows are useful for iteration, replay, and edge-case coverage, but should not dominate promotion decisions
+
+Concrete example:
+- current claim:
+  - final score `0.58`
+  - payout `INR 86`
+  - trust is decent
+  - only weak flags such as `movement` and `pre_activity`
+  - system decision = `delayed`
+- later manual review result:
+  - final label = `legit`
+- after many similar examples are stored:
+  - analytics can show that this weak-signal, low-payout pattern is mostly legitimate
+  - policy and model calibration can safely move that pattern into a future zero-touch lane
 
 ### F. Observability And Analytics Expansion
 
@@ -69,6 +111,53 @@ Additional work to add:
   - payout exposure currently held in review
 - health rollups for demo and operator views, not only backend logs
 
+Important interpretation rule:
+- the first Wave 2 question is not "how many claims were reviewed?"
+- it is "which reviewed patterns later turned out to be safe, and why did the system hesitate?"
+- that is how manual-review volume gets reduced without weakening fraud controls
+
+Additional operational rule:
+- analytics should distinguish between:
+  - real quiet periods
+  - simulation starvation
+  - deliberately injected scenario traffic
+- otherwise the team may confuse "stable system" with "system received no meaningful work"
+
+Additional decision-surface rule:
+- stop reading the gray band as one scalar threshold problem
+- future analytics should explain review concentration through:
+  - score band
+  - payout exposure
+  - trust level
+  - signal family
+  - uncertainty case
+  - cluster context
+
+Policy-health additions:
+- add rule-impact ranking so the system can identify:
+  - top false-review contributors by rule
+  - top replay-drag contributors by rule
+  - top friction-causing surfaces
+- add policy-health metrics such as:
+  - friction score
+  - automation efficiency
+  - rule concentration
+  - surface imbalance
+- treat early analytics as provisional when evidence is still dominated by:
+  - synthetic traffic
+  - seeded scenarios
+  - low sample size
+
+Important interpretation guardrail:
+- measurable rules will surface uncomfortable truths
+- some rules that look correct and pass tests may still do bad operational work
+- do not delete or relax them on first sight
+- validate impact using:
+  - sample size
+  - replay lift/drag
+  - evidence quality
+  - scenario balance
+
 ## Tier 2: Real-World Hardening (High Value)
 
 ### C. Advanced Fraud Detection
@@ -88,6 +177,25 @@ Additional work to add:
 - calibration studies around false reviews, false rejects, and trusted-worker friction
 - trust-evolution logic that is measured against outcomes instead of manually assumed to be correct
 - confidence-aware fraud review bands so the system routes ambiguity intentionally rather than over-delaying by default
+
+Critical cluster upgrade:
+- stop treating `cluster` as one signal
+- model cluster as a possible scenario narrative
+- begin decomposing cluster context into features such as:
+  - `cluster_size`
+  - `cluster_density`
+  - `avg_trust_in_cluster`
+  - `pre_activity_density`
+  - `activity_variance`
+  - `payout_mean`
+  - `event_overlap_strength`
+- classify clusters into types such as:
+  - `shelter_cluster`
+  - `fraud_ring`
+  - `coincidence_cluster`
+  - `mixed_cluster`
+- route from `cluster_type -> decision_weight`, not `cluster -> panic`
+- finish the purge of direct raw-cluster pressure from the main score path so cluster becomes context-first, not a second hidden source of truth
 
 ### A. Real Provider Integration
 
@@ -139,6 +247,19 @@ Additional work to add:
 - queue-pressure response that changes review sensitivity safely rather than letting backlog compound blindly
 - stronger contradiction handling for cases where signals disagree sharply
 - preserving zero-touch automation for clear claims while pushing only true ambiguity into review
+
+Graded uncertainty handling to add:
+- uncertainty should not collapse into one action
+- future routing should distinguish between:
+  - low payout + low confidence -> safe micro auto-approve when evidence allows
+  - high payout + low confidence -> review
+  - contradiction -> review
+  - missing critical data -> delay and retry
+- uncertainty types such as `silent_conflict`, `core_contradiction`, and later data-quality cases should drive different behaviors, not only one queue
+
+Operational uncertainty rule:
+- each uncertainty case should resolve through one intended behavior path
+- overlap should be treated as a policy-definition problem, not normal behavior
 
 ### E. Payout Integration (Simulated)
 
@@ -221,6 +342,31 @@ Add:
 Why this matters:
 - Phase 3 judging depends on explaining the system, not just running it
 
+### P. Controlled Simulation Traffic And Scenario Injection
+
+Phase 3 needs explicit stimulus modes so the policy engine does not sit idle waiting for rare threshold-crossing events.
+
+Add:
+- baseline mode:
+  - realistic thresholds
+  - low event frequency
+  - sanity-check behavior
+- simulation pressure mode:
+  - forced or probabilistic trigger overrides
+  - high-volume, diverse claim traffic
+  - stress testing for policy, replay, and review routing
+- scenario mode:
+  - targeted cluster-heavy, gray-band, ambiguity, and fraud-ring cases
+  - deterministic cause-and-effect evaluation
+- replay amplification mode:
+  - perturb stored decision-memory rows
+  - generate structured synthetic variants for calibration exploration
+
+Why this matters:
+- no triggers -> no events -> no claims -> no decisions -> no learning
+- realistic thresholds alone can leave the system architecturally strong but empirically starved
+- the team needs controlled chaos, not only realistic calm
+
 ### J. Testing And Validation Expansion
 
 The current roadmap mentions evaluation, but it should be more explicit about testing scope.
@@ -277,6 +423,116 @@ Keep these guardrails:
 
 These are not optional polish items. They are the stability rules that keep Phase 3 from weakening the Phase 2 core.
 
+### M. Policy Architecture And Decision Layering
+
+Phase 3 should not keep expanding as scattered special-case branches.
+
+Add:
+- a documented decision policy map with explicit layers:
+  - Fraud Layer
+  - Strong Approve Layer
+  - Micro Payout Safe Lane
+  - Ambiguity Resolver
+  - Review Fallback
+- each policy rule should belong to one layer only
+- replay and explainability should report which layer resolved the claim
+- future implementation should move toward a policy-driven rule structure instead of opaque conditional sprawl
+- each resolved decision should eventually log:
+  - `policy_layer`
+  - `rule_id`
+  - rule-specific rationale
+
+Why this matters:
+- it keeps decision growth understandable
+- it makes rules more versionable and replay-friendly
+- it reduces overlap and hidden contradiction across approval/review lanes
+- it turns architecture from a documentation idea into an enforceable system contract
+
+Important warning:
+- Phase 3 currently has policy layers as a design direction, not yet as a fully enforced execution contract
+- until code can answer "which layer decided this claim?", the architecture is still only partially realized
+
+Next-stage governance work to add:
+- define rule metadata as a maintained contract:
+  - purpose
+  - surface
+  - risk expectation
+- use policy metadata in analytics, not only logs
+- identify which rules and surfaces create the most friction before changing thresholds
+- prevent policy fragmentation by pruning or consolidating low-value micro-rules over time
+
+### N. Product Translation And Trust Engineering
+
+Phase 3 product work should not only hide internal complexity. It should compress meaning into clear user-facing narratives.
+
+Worker-message rule:
+- every worker message should answer:
+  - what happened
+  - what the system is doing
+  - what happens next
+
+Examples of the intended direction:
+- not raw internal language like `cluster`, `uncertainty band`, or `noise overload`
+- instead:
+  - "Rain disrupted your work."
+  - "We are confirming activity in your area."
+  - "This usually completes within 2 hours."
+
+Admin-message rule:
+- admins should see the pattern, historical tendency, recommendation, and exposure
+- they should not have to parse repeated raw signal spam to understand the case
+
+### O. Promotion Unit Definition
+
+Phase 3 promotion should be based on vertical slices, not backend-only advancement.
+
+Define one promotion unit as:
+- backend logic change
+- replay impact report
+- test coverage
+- UI mapping
+- product copy
+- demo narrative
+
+If one of these is missing, the slice is not ready for promotion into the deployed repo.
+
+Promotion evidence rule to add:
+- calibration promotion should require a minimum body of trustworthy review evidence
+- suggested initial guardrail:
+  - at least `30` `manual_reviewed` examples for the pattern being relaxed
+  - false-review rate improves in replay
+  - fraud leakage does not materially spike
+- this evidence bar can become stricter as the system approaches deployed promotion
+
+Additional governance rule:
+- do not promote a change just because one rule or surface looks bad in early analytics
+- require:
+  - enough evidence quality
+  - enough sample size
+  - replay context
+  - product translation readiness
+
+### Q. Policy Health And Introspection
+
+Phase 3 now needs explicit policy governance, not only decision governance.
+
+Add:
+- rule-impact ranking
+- surface-level friction tracking
+- rule concentration analysis
+- surface imbalance detection
+- replay drag and replay lift by rule and surface
+- operator-safe summaries of which policy areas are causing unnecessary review
+
+Why this matters:
+- once rules are measurable, the team can stop tuning blindly
+- policy health becomes the control system for future calibration
+
+Important caution:
+- measurable policy does not mean trustworthy policy by default
+- early results can still be distorted by synthetic-heavy traffic or scenario imbalance
+- policy health should guide investigation, not trigger instant rule deletion
+
 ## Suggested Execution Order
 
 To keep Phase 3 coherent, execute it in this order:
@@ -284,9 +540,9 @@ To keep Phase 3 coherent, execute it in this order:
 1. Learning/data memory and observability backbone
 2. Risk-wrapper explainability and uncertainty routing
 3. Fraud hardening using stored feedback, not just synthetic assumptions
-4. Worker/admin explainability and product-surface completion
+4. Worker/admin explainability, product translation, and product-surface completion
 5. Real-provider integration in shadow-safe mode
-6. Adaptive thresholds and confidence calibration improvements
+6. Adaptive thresholds, graded uncertainty behavior, and confidence calibration improvements
 7. Simulated payout-flow polish
 8. Demo-history generation, full demo runner, 5-minute video, and pitch deck
 

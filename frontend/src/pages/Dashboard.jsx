@@ -132,6 +132,16 @@ export default function Dashboard() {
     }
     return "Coverage is live and waiting for the next verified disruption in the worker zone.";
   }, [latestPayout, approvedClaims]);
+  const latestPayoutState =
+    latestPayout?.status === "failed"
+      ? "Transfer failed, claim still protected"
+      : latestPayout?.status === "processing"
+        ? "Transfer in progress"
+        : latestPayout?.status === "pending"
+          ? "Transfer queued"
+          : latestPayout
+            ? "Credited to wallet and recorded in payout history"
+            : "No wallet transfer yet";
 
   if (loading) {
     return <div className="panel p-8 text-center text-on-surface-variant">Loading dashboard...</div>;
@@ -222,17 +232,15 @@ export default function Dashboard() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="eyebrow">Latest payout</p>
-                  <p className="mt-4 text-5xl font-bold text-primary">
-                    {latestPayout ? formatCurrency(latestPayout.amount) : "INR 0"}
-                  </p>
-                </div>
+              <p className="mt-4 text-5xl font-bold text-primary">
+                {latestPayout ? formatCurrency(latestPayout.amount) : "INR 0"}
+              </p>
+            </div>
                 <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100/50">
                   <Wallet size={20} className="text-emerald-700" />
                 </div>
               </div>
-              <p className="mt-4 text-sm text-on-surface-variant">
-                {latestPayout ? "Credited to wallet and recorded in payout history" : "No wallet transfer yet"}
-              </p>
+              <p className="mt-4 text-sm text-on-surface-variant">{latestPayoutState}</p>
             </div>
             <div className="col-span-12 md:col-span-5 context-panel p-6 border-accent-left border-accent-warning">
               <p className="eyebrow">Protection status</p>

@@ -81,6 +81,8 @@ class ClaimResolveRequest(BaseModel):
 class ReviewQueueResponse(BaseModel):
     total_pending: int
     overdue_count: int
+    high_load_mode: Optional[bool] = None
+    high_load_threshold: Optional[int] = None
     claims: List[ClaimResponse]
 
 

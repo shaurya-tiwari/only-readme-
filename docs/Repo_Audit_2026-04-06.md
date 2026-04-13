@@ -23,6 +23,7 @@ This revision reflects the current state after:
 - reannotation, governed experiment, and safe backfill tooling follow-up
 - gray-band district split and cluster-routing-only follow-up
 - guided distribution shaping, source-alignment gating, and executable promotion-contract follow-up
+- micro-world realism follow-up
 - refreshed intelligence and review surfaces in the working repo
 
 ## Docs Reviewed
@@ -75,7 +76,7 @@ This revision reflects the current state after:
 
 ### Working repo
 
-- backend tests: `102/102`
+- backend tests: `114/114`
 - decision memory and replay live locally
 - delayed queue locally cleared for calibration analysis
 - policy rule metadata and layer ownership now emitted in decisions
@@ -91,14 +92,19 @@ This revision reflects the current state after:
   - underfilled buckets are favored during generation
   - oversampled buckets are penalized
 - difficulty-profile control now exists for synthetic experiments:
-  - easy
-  - borderline
-  - adversarial
+  - `clean_legit`
+  - `noisy_legit`
+  - `borderline`
+  - `adversarial`
 - source-alignment measurement now exists:
   - baseline vs synthetic outcome divergence
   - baseline vs synthetic rule divergence
   - baseline vs synthetic surface divergence
   - baseline vs synthetic difficulty divergence
+- micro-world realism work now exists:
+  - worker archetypes
+  - time-window style behavioral overlap
+  - conflict-pattern generation
 - executable promotion-contract evaluation now exists in experiment reports:
   - distribution validity
   - baseline improvement
@@ -179,6 +185,9 @@ The following are now true:
   - payout and trust shaping can be guided well enough
   - but cluster and uncertainty realism still lag behind the target profile
   - and source behavior still diverges too far from baseline rule and surface patterns
+- the next realism insight is now clear:
+  - cluster is materially improved
+  - uncertainty emergence is now the main remaining realism bottleneck
 
 ## Deployed Repo Audit
 
@@ -244,13 +253,14 @@ The following are now true:
   - guided distribution shaping in the experiment runner
   - difficulty-profile shaping for synthetic pressure
   - source-alignment divergence reporting
+  - micro-world behavioral simulation
   - executable promotion-contract evaluation for experiments
   - replay-gated safe backfill tooling
   - explicit gray-band districts
   - cluster routing-only metadata behavior
   - translated admin/intelligence rule-surface visibility
 - Backend verification is strong:
-  - `102/102` passing
+  - `114/114` passing
 
 ### Findings
 
@@ -283,6 +293,10 @@ The following are now true:
   - guided shaping can fix payout/trust realism faster than cluster/uncertainty realism
 - The latest governed experiment exposed the next realism layer:
   - synthetic outcome, rule, and surface behavior can still diverge sharply from baseline even after variable shaping improves
+- The micro-world pass improved the system again:
+  - outcome divergence is now low enough to be directionally believable
+  - rule and surface divergence dropped materially
+  - uncertainty emergence remains the main realism gap
 - Policy introspection is now partially wired into the UI, but still lacks deeper trend views and explicit rule-impact ranking.
 
 #### LOW
@@ -338,6 +352,10 @@ The following are now true:
 - The system can now reject a seemingly healthy experiment as insufficiently representative.
 - The system can now block a policy change even when a run looks operationally strong, if the promotion contract or realism gates fail.
 - The system can now measure when synthetic traffic is drifting too far from baseline behavior at the rule and surface level.
+- The system can now distinguish between:
+  - structural correctness
+  - relational realism
+  instead of treating both as one problem.
 
 ### What Still Needs Care
 
@@ -403,8 +421,9 @@ Current architectural upgrades:
    - scenario traffic must remain intentional
 5. Source-aware weighting is still not enforced strongly enough for calibration decisions.
 6. Experiment distributions still need stronger cluster and uncertainty shaping before very large runs like `100000` rows are treated as meaningful.
-7. Source alignment is still too weak:
-   - synthetic outcome, rule, and surface patterns still diverge too far from baseline
+7. Source alignment is improved, but not yet sufficient:
+   - rule and surface divergence are much lower
+   - difficulty and uncertainty realism still lag
 8. Promotion governance now has an executable contract in the experiment runner, but the same contract still needs to be enforced consistently in wider calibration and promotion workflows.
 9. Frontend still needs richer trend views for policy health and rule impact over time.
 10. Some user-facing explanations still need stronger translation from internal model language to product language.
@@ -434,6 +453,7 @@ Current architectural upgrades:
 - Treat large synthetic experiments as hypothesis tools, not truth generators.
 - Do not run the `100000` experiment as a decision input until realism gates, especially cluster and uncertainty shaping, are materially closer to tolerance.
 - Do not run the `100000` experiment as a decision input until source-alignment divergence is materially closer to baseline behavior as well.
+- Do not let realism research consume demo work once the system becomes directionally trustworthy for judges.
 - Do not delete or relax rules on first analytics contact; validate impact against evidence quality first.
 - Do not push deploy-facing changes until grading is complete.
 

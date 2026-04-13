@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from backend.core.claim_processor import claim_processor
 from backend.database import async_session_factory
-from backend.db.models import AuditLog, Claim, Event, Policy, TrustScore, Worker, Zone
+from backend.db.models import AuditLog, Claim, DecisionLog, Event, Policy, TrustScore, Worker, Zone
 from backend.utils.time import utc_now_naive
 
 
@@ -97,6 +97,13 @@ def setup_approved_claim_mocks(monkeypatch):
             "adjusted_fraud_score": 0.05,
             "flags": [],
             "is_high_risk": False,
+            "rule_fraud_score": 0.08,
+            "ml_fraud_score": 0.11,
+            "fraud_probability": 0.09,
+            "ml_confidence": 0.93,
+            "model_version": "fraud-model-test",
+            "fallback_used": False,
+            "top_factors": [{"label": "movement anomaly", "score": 0.12}],
         }
 
     def fake_decide(*args, **kwargs):
@@ -104,8 +111,12 @@ def setup_approved_claim_mocks(monkeypatch):
             "final_score": 0.91,
             "decision": "approved",
             "explanation": "Approved in test.",
-            "breakdown": {},
-            "inputs": {},
+            "decision_policy_version": "decision-policy-test",
+            "decision_confidence": 0.84,
+            "decision_confidence_band": "high",
+            "primary_reason": "signal alignment requires review",
+            "breakdown": {"automation_confidence": 0.87},
+            "inputs": {"fraud_flags": [], "raw_fraud_score": 0.1},
             "review_deadline": None,
         }
 
@@ -309,6 +320,80 @@ async def test_process_worker_claim_allows_new_claim_in_next_incident_window(mon
 
 
 @pytest.mark.asyncio
+async def test_process_worker_claim_keeps_claim_approved_when_payout_fails(monkeypatch):
+    worker_id, policy_id, event_id = await create_worker_policy_event("+919777666554")
+
+    async def fake_fraud(*args, **kwargs):
+        return {
+            "raw_fraud_score": 0.1,
+            "adjusted_fraud_score": 0.05,
+            "flags": [],
+            "is_high_risk": False,
+            "rule_fraud_score": 0.08,
+            "ml_fraud_score": 0.11,
+            "fraud_probability": 0.09,
+            "ml_confidence": 0.93,
+            "model_version": "fraud-model-test",
+            "fallback_used": False,
+            "top_factors": [{"label": "movement anomaly", "score": 0.12}],
+        }
+
+    def fake_decide(*args, **kwargs):
+        return {
+            "final_score": 0.91,
+            "decision": "approved",
+            "explanation": "Approved in test.",
+            "decision_policy_version": "decision-policy-test",
+            "decision_confidence": 0.84,
+            "decision_confidence_band": "high",
+            "primary_reason": "signal alignment requires review",
+            "breakdown": {"automation_confidence": 0.87},
+            "inputs": {"fraud_flags": [], "raw_fraud_score": 0.1},
+            "review_deadline": None,
+        }
+
+    async def fake_income(*args, **kwargs):
+        return {
+            "income_per_hour": 100,
+            "peak_multiplier": 1.2,
+            "raw_payout": 240,
+            "final_payout": 240,
+        }
+
+    async def exploding_payout(*args, **kwargs):
+        raise RuntimeError("processor payout failure")
+
+    monkeypatch.setattr("backend.core.claim_processor.fraud_detector.compute_fraud_score", fake_fraud)
+    monkeypatch.setattr("backend.core.claim_processor.decision_engine.decide", fake_decide)
+    monkeypatch.setattr("backend.core.claim_processor.income_verifier.calculate_payout", fake_income)
+    monkeypatch.setattr("backend.core.claim_processor.payout_executor.execute", exploding_payout)
+
+    async with async_session_factory() as db:
+        worker = await db.get(Worker, worker_id)
+        policy = await db.get(Policy, policy_id)
+        event = await db.get(Event, event_id)
+
+        result = await claim_processor._process_worker_claim(
+            db=db,
+            worker=worker,
+            policy=policy,
+            event=event,
+            disruption_score=0.82,
+            event_confidence=0.9,
+            trust_score=0.75,
+            covered_triggers=["rain", "traffic"],
+            fired_triggers=["rain", "traffic"],
+        )
+        await db.commit()
+
+        created_claim = (await db.execute(select(Claim).where(Claim.worker_id == worker.id, Claim.event_id == event.id))).scalar_one()
+
+    assert result["status"] == "approved"
+    assert result["details"]["payout"]["status"] == "failed"
+    assert created_claim.status == "approved"
+
+
+@pytest.mark.asyncio
 async def test_run_trigger_cycle_resets_scenario_even_on_failure(monkeypatch):
     calls = []
 
@@ -331,3 +416,39 @@ async def test_run_trigger_cycle_resets_scenario_even_on_failure(monkeypatch):
             )
 
     assert calls == ["heavy_rain", "normal"]
+
+
+@pytest.mark.asyncio
+async def test_run_trigger_cycle_infers_scenario_traffic_source(monkeypatch):
+    captured: dict[str, str] = {}
+
+    async def fake_zone(*args, **kwargs):
+        captured["traffic_source"] = kwargs["traffic_source"]
+        return {
+            "zone": "south_delhi",
+            "traffic_source": kwargs["traffic_source"],
+            "signals": {},
+            "triggers_fired": [],
+            "events_created": 0,
+            "events_extended": 0,
+            "claims_processed": 0,
+            "claims_approved": 0,
+            "claims_delayed": 0,
+            "claims_rejected": 0,
+            "claims_duplicate": 0,
+            "total_payout": 0.0,
+            "claim_details": [],
+        }
+
+    monkeypatch.setattr(claim_processor, "_process_zone", fake_zone)
+
+    async with async_session_factory() as db:
+        result = await claim_processor.run_trigger_cycle(
+            db=db,
+            city="delhi",
+            zones=["south_delhi"],
+            scenario="heavy_rain",
+        )
+
+    assert result["traffic_source"] == "scenario"
+    assert captured["traffic_source"] == "scenario"

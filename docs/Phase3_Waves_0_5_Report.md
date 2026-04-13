@@ -1,8 +1,8 @@
-# Phase 3 Progress Report: Waves 0-5 Plus Enforcement Passes
+# Phase 3 Progress Report: Waves 0-5 Plus Realism Passes
 
 Date: 2026-04-07
 
-This report replaces the fragmented wave notes for Waves 0 through 5 and now includes the post-Wave-5 enforcement passes, the first Wave 5.5 implementation slice, the first policy-health/admin-translation follow-up, the first pressure-profile/source-comparison follow-up, the first large-experiment governance tooling, and the first explicit gray-band district split.
+This report replaces the fragmented wave notes for Waves 0 through 5 and now includes the post-Wave-5 enforcement passes, the first Wave 5.5 implementation slice, the policy-health/admin-translation follow-up, the pressure-profile/source-comparison follow-up, the large-experiment governance tooling, the explicit gray-band district split, and the first micro-world realism passes.
 
 It captures:
 - what was completed in the working repo
@@ -15,6 +15,154 @@ It captures:
 This report covers the working repo only.
 
 Nothing in this report implies promotion into the deployed repo unless stated separately.
+
+## System Overview
+
+RideShield is now beyond threshold-only claim routing.
+
+The working repo currently contains:
+- a policy-layered decision engine
+- decision memory and replay
+- policy analytics and promotion governance
+- controlled synthetic traffic and source segmentation
+- a lightweight behavioral micro-world for realism work
+
+The system is structurally sound.
+
+The main remaining problem is no longer policy architecture.
+
+It is realism:
+- making synthetic cluster behavior believable
+- making uncertainty emerge from conflict instead of direct injection
+- keeping synthetic rule and surface behavior close enough to baseline to trust experiments directionally
+
+## Current Architecture
+
+### Decision System
+
+- policy is structured into:
+  - fraud rules
+  - strong approve rules
+  - micro-lane rules
+  - uncertainty rules
+  - fallback rules
+- each decision records:
+  - `policy_layer`
+  - `rule_id`
+  - `surface`
+  - `risk_expectation`
+- the `0.60-0.65` gray band is split into:
+  - `low_payout_legit_surface`
+  - `mid_trust_ambiguity_surface`
+  - `early_fraud_signal_surface`
+  - `cluster_sensitive_surface`
+- cluster influence is routing-only, not score-owned
+
+### Decision Memory And Analytics
+
+- decisions persist:
+  - policy metadata
+  - surface metadata
+  - `traffic_source`
+  - `pressure_profile`
+- analytics can measure:
+  - rule frequency
+  - surface distribution
+  - false-review attribution
+  - replay transitions
+  - source comparison
+  - policy-health metrics
+- promotion governance now checks:
+  - `distribution_valid`
+  - `baseline_improves`
+  - `fraud_risk_within_limit`
+  - `sufficient_sample_size`
+  - `multi_source_consistency`
+  - `source_alignment_valid`
+
+### Simulation Foundation
+
+- simulation evolved through:
+  - random generation
+  - distribution shaping
+  - relational shaping
+  - micro-world simulation
+- current behavioral generator uses worker archetypes:
+  - `LEGIT_STABLE`
+  - `LEGIT_NOISY`
+  - `FRAUD_OPPORTUNISTIC`
+  - `FRAUD_RING_MEMBER`
+  - `MIXED_BEHAVIOR`
+- current behavioral difficulty categories:
+  - `clean_legit`
+  - `noisy_legit`
+  - `borderline`
+  - `adversarial`
+- current conflict patterns:
+  - `trust_vs_cluster`
+  - `score_vs_behavior`
+  - `deceptive_semi_fraud`
+  - `too_perfect_signal`
+
+## Simulation Evolution
+
+- Wave 5.5 started with synthetic pressure and traffic-source labeling.
+- It then added governed experiments, baseline comparison, and promotion gates.
+- It then moved from variable shaping to relational shaping.
+- It now uses a small behavioral micro-world so cluster and uncertainty can emerge from worker behavior instead of being assigned directly.
+
+## Current Experiment Snapshot
+
+Latest `1000`-row run:
+- payout distribution is effectively on target
+- trust distribution is effectively on target
+- cluster mix is materially more believable than earlier passes
+- outcome divergence: `0.064`
+- rule divergence: `0.134`
+- surface divergence: `0.134`
+- `max_gap`: `0.268`
+- difficulty divergence: `0.364`
+- promotion contract: `allow_policy_change = false`
+
+What improved:
+- rule and surface alignment improved materially
+- cluster realism improved materially
+- baseline vs synthetic outcome behavior is now directionally believable
+
+What still fails:
+- uncertainty is still dominated by `none`
+- `noise_overload` and `silent_conflict` still under-emerge
+- replay is still too easy relative to baseline on fraud risk
+- scenario traffic is still harsher than baseline in the wrong way
+
+## Current Limitations
+
+- remaining realism gaps are now relational, not structural
+- uncertainty is not emerging often enough from real signal tension
+- behavioral difficulty still diverges too much from baseline
+- large synthetic runs like `100000` are still not trustworthy as calibration evidence
+- this is research-level tuning, not required for demo viability
+
+## Next Steps
+
+Short-term engineering focus:
+1. strengthen emergence of:
+   - `noise_overload`
+   - `silent_conflict`
+2. rebalance replay and scenario difficulty so synthetic fraud risk is less distorted
+3. tighten rule and surface alignment further against baseline
+
+Hackathon-facing focus after that:
+1. integrate at least one semi-real or real provider path cleanly
+2. polish frontend language so internal engine terms stay hidden
+3. package clear demo flows for:
+   - zero-touch claim
+   - replay-based policy improvement
+   - fraud-vs-legit separation under cluster context
+4. keep the judge narrative centered on:
+   - automated claims
+   - explainable decisions
+   - evidence-backed improvement over time
 
 ## Wave 0: Guardrails
 
@@ -500,9 +648,10 @@ Still working-repo only:
 ## Validation Snapshot
 
 Current working-repo verification after the latest enforcement pass:
-- backend tests: `102/102`
+- backend tests: `114/114`
 - frontend tests: `73/73`
 - frontend lint: passed
 - frontend build: passed
 
 Frontend verification required an escalated run because sandboxed Node execution hit a filesystem `EPERM` before the app code executed.
+Backend verification requires the local Docker/Postgres test DB on host port `5433`; if Docker is not running, the suite fails at connection setup rather than on app logic.

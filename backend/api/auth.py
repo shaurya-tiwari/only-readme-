@@ -18,7 +18,7 @@ from backend.schemas.auth import AdminLoginRequest, WorkerLoginRequest
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 SESSION_COOKIE_NAME = "rideshield_session"
 SESSION_COOKIE_MAX_AGE = settings.SESSION_DURATION_HOURS * 3600
-SESSION_COOKIE_SECURE = not settings.DEBUG
+SESSION_COOKIE_SECURE = settings.SESSION_COOKIE_SECURE
 SESSION_COOKIE_SAMESITE = settings.SESSION_COOKIE_SAMESITE
 
 

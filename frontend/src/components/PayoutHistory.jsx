@@ -1,4 +1,4 @@
-import { formatCurrency, formatDateTime } from "../utils/formatters";
+import { formatCurrency, formatDateTime, humanizeSlug, statusPill } from "../utils/formatters";
 
 export default function PayoutHistory({ data }) {
   if (!data) {
@@ -22,12 +22,27 @@ export default function PayoutHistory({ data }) {
         {(data.payouts || []).slice(0, 6).map((payout) => (
           <div key={payout.id} className="panel-quiet flex items-center justify-between rounded-[24px] px-4 py-4">
             <div>
-              <p className="font-semibold text-primary">{formatCurrency(payout.amount)}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-primary">{formatCurrency(payout.amount)}</p>
+                <span className={statusPill(payout.status)}>{humanizeSlug(payout.status)}</span>
+              </div>
               <p className="mt-1 text-sm text-on-surface-variant">
-                {payout.channel} | {payout.transaction_id}
+                {payout.channel}
+                {payout.transaction_id ? ` | ${payout.transaction_id}` : " | awaiting transfer reference"}
               </p>
             </div>
-            <p className="text-sm text-on-surface-variant">{formatDateTime(payout.completed_at || payout.initiated_at)}</p>
+            <div className="text-right">
+              <p className="text-sm text-on-surface-variant">{formatDateTime(payout.completed_at || payout.initiated_at)}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {payout.status === "failed"
+                  ? "Backup action needed"
+                  : payout.status === "processing"
+                    ? "Transfer in progress"
+                    : payout.status === "pending"
+                      ? "Queued for payout"
+                      : "Transfer completed"}
+              </p>
+            </div>
           </div>
         ))}
         {!data.payouts?.length ? <p className="text-sm text-on-surface-variant">No payouts yet.</p> : null}
