@@ -845,6 +845,8 @@ class DecisionEngine:
         fraud_flags = fraud_result["flags"]
         flag_profile = self._flag_profile(fraud_result)
         payout_amount = max(0.0, float(payout_amount or 0.0))
+        movement_signal = self._flag_signal_value(fraud_result, "movement")
+        gps_spoof_detected = movement_signal >= 0.8
         disruption_component = self.WEIGHTS["disruption"] * disruption_score
         confidence_component = self.WEIGHTS["confidence"] * event_confidence
         fraud_component = self.WEIGHTS["fraud_inverse"] * (1 - adjusted_fraud)
@@ -1031,6 +1033,16 @@ class DecisionEngine:
             gray_band_surface=gray_band_surface,
         )
         decision, policy, explanation_template = self._resolve_policy(policy_context)
+        if gps_spoof_detected:
+            strong_review_flags = {"duplicate", "timing", "income_inflation", "cluster"}
+            if adjusted_fraud >= 0.35 or trust_score <= 0.35 or strong_review_flags.intersection(fraud_flags):
+                decision = "rejected"
+                policy = self._policy_resolution("fraud_layer", "gps_spoof_reject_override")
+                explanation_template = "Claim rejected because RideShield detected GPS spoofing-class movement patterns."
+            else:
+                decision = "delayed"
+                policy = self._policy_resolution("review_fallback", "gps_spoof_review_override")
+                explanation_template = "Claim delayed because RideShield detected GPS spoofing-class movement patterns."
         explanation = explanation_template.format(final_score=final_score)
         rule_metadata = self._rule_metadata(policy["policy_layer"], policy["rule_id"])
 
@@ -1110,6 +1122,7 @@ class DecisionEngine:
                 "cluster_type": cluster_context["type"],
                 "cluster_routing": cluster_context["routing"],
                 "cluster_raw_penalty_active": cluster_context["raw_penalty_active"],
+                "gps_spoof_detected": gps_spoof_detected,
             },
             "inputs": {
                 "disruption_score": disruption_score,
@@ -1135,6 +1148,7 @@ class DecisionEngine:
                 "auto_approve": auto_approve,
                 "trusted_low_risk_approve": trusted_low_risk_approve,
                 "auto_reject": auto_reject,
+                "gps_spoof_detected": gps_spoof_detected,
                 "feedback_result": feedback_result,
             },
             "review_deadline": utc_now_naive() + timedelta(hours=24) if decision == "delayed" else None,

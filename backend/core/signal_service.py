@@ -49,7 +49,7 @@ class SignalService:
         persisted_shadow_diffs: list[dict[str, Any]] = []
 
         for signal_type in self.SIGNAL_TYPES:
-            provider = provider_registry.get_provider(signal_type)
+            provider = provider_registry.get_provider(signal_type, source_mode=source_mode)
             fetch_result = await self._guarded_fetch(provider, db, zone, city, source_mode)
             primary_snapshot = provider_registry.normalize(fetch_result)
             primary_snapshots.append(primary_snapshot)

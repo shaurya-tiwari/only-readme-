@@ -424,6 +424,7 @@ async def test_run_trigger_cycle_infers_scenario_traffic_source(monkeypatch):
 
     async def fake_zone(*args, **kwargs):
         captured["traffic_source"] = kwargs["traffic_source"]
+        captured["targeted_worker_ids"] = kwargs.get("targeted_worker_ids")
         return {
             "zone": "south_delhi",
             "traffic_source": kwargs["traffic_source"],
@@ -452,3 +453,39 @@ async def test_run_trigger_cycle_infers_scenario_traffic_source(monkeypatch):
 
     assert result["traffic_source"] == "scenario"
     assert captured["traffic_source"] == "scenario"
+
+
+@pytest.mark.asyncio
+async def test_run_trigger_cycle_passes_targeted_worker_ids(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_zone(*args, **kwargs):
+        captured["targeted_worker_ids"] = kwargs.get("targeted_worker_ids")
+        return {
+            "zone": "south_delhi",
+            "traffic_source": kwargs["traffic_source"],
+            "signals": {},
+            "triggers_fired": [],
+            "events_created": 0,
+            "events_extended": 0,
+            "claims_processed": 0,
+            "claims_approved": 0,
+            "claims_delayed": 0,
+            "claims_rejected": 0,
+            "claims_duplicate": 0,
+            "total_payout": 0.0,
+            "claim_details": [],
+        }
+
+    monkeypatch.setattr(claim_processor, "_process_zone", fake_zone)
+
+    async with async_session_factory() as db:
+        await claim_processor.run_trigger_cycle(
+            db=db,
+            city="delhi",
+            zones=["south_delhi"],
+            scenario="heavy_rain",
+            targeted_worker_ids=["worker-123"],
+        )
+
+    assert captured["targeted_worker_ids"] == ["worker-123"]

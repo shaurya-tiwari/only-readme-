@@ -46,8 +46,9 @@ class ProviderRegistry:
             "platform": normalize_platform,
         }
 
-    def configured_source(self, signal_type: str) -> str:
-        if settings.SIGNAL_SOURCE_MODE == "mock":
+    def configured_source(self, signal_type: str, source_mode: str | None = None) -> str:
+        active_mode = (source_mode or settings.SIGNAL_SOURCE_MODE).strip().lower()
+        if active_mode in {"mock", "demo"}:
             return "mock"
         if signal_type == "weather":
             return settings.WEATHER_SOURCE
@@ -59,8 +60,8 @@ class ProviderRegistry:
             return settings.PLATFORM_SOURCE
         raise KeyError(f"Unknown signal type: {signal_type}")
 
-    def get_provider(self, signal_type: str) -> SignalProvider:
-        source = self.configured_source(signal_type)
+    def get_provider(self, signal_type: str, source_mode: str | None = None) -> SignalProvider:
+        source = self.configured_source(signal_type, source_mode=source_mode)
         return self._providers[signal_type][source]
 
     def get_shadow_provider(self, signal_type: str) -> SignalProvider | None:

@@ -33,8 +33,9 @@ class TriggerEngine:
         zone: str,
         city: str = "delhi",
         db: AsyncSession | None = None,
+        mode: str = "live",
     ) -> Dict:
-        return await signal_service.fetch_zone_snapshot(db=db, zone=zone, city=city, mode="live")
+        return await signal_service.fetch_zone_snapshot(db=db, zone=zone, city=city, mode=mode)
 
     def thresholds_for_zone(self, zone: Zone | None = None) -> Dict:
         if zone and zone.threshold_profile:
@@ -233,16 +234,23 @@ class TriggerEngine:
         )
         return [event], 1, 0
 
-    async def find_affected_workers(self, db: AsyncSession, zone: Zone, fired_triggers: List[str]) -> List[Dict]:
+    async def find_affected_workers(
+        self,
+        db: AsyncSession,
+        zone: Zone,
+        fired_triggers: List[str],
+        worker_ids: List[str] | None = None,
+    ) -> List[Dict]:
         now = utc_now_naive()
         grace_window = timedelta(hours=1)
-        workers = (
-            await db.execute(
-                select(Worker)
-                .options(selectinload(Worker.policies), selectinload(Worker.trust_score), selectinload(Worker.claims))
-                .where(and_(Worker.zone_id == zone.id, Worker.status == "active"))
-            )
-        ).scalars().all()
+        worker_query = (
+            select(Worker)
+            .options(selectinload(Worker.policies), selectinload(Worker.trust_score), selectinload(Worker.claims))
+            .where(and_(Worker.zone_id == zone.id, Worker.status == "active"))
+        )
+        if worker_ids:
+            worker_query = worker_query.where(Worker.id.in_(worker_ids))
+        workers = (await db.execute(worker_query)).scalars().all()
 
         affected = []
         for worker in workers:

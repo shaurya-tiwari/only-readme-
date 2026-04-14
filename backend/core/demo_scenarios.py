@@ -338,6 +338,7 @@ async def run_demo_scenario(db: AsyncSession, scenario_id: str) -> dict:
         city=scenario.city,
         scenario=scenario.simulator_scenario,
         demo_run_id=demo_run_id,
+        targeted_worker_ids=[worker.id],
     )
 
     if trigger_result["claims_generated"] == 0:

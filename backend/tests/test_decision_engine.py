@@ -88,6 +88,28 @@ def test_hard_review_flags_do_not_use_trusted_low_risk_fast_path():
     assert result["inputs"]["trusted_low_risk_approve"] is False
 
 
+def test_gps_spoofing_class_movement_cannot_auto_approve():
+    result = decision_engine.decide(
+        disruption_score=0.82,
+        event_confidence=0.91,
+        fraud_result={
+            "adjusted_fraud_score": 0.18,
+            "raw_fraud_score": 0.31,
+            "flags": ["movement"],
+            "signals": {"movement": 1.0},
+            "is_suspicious": False,
+            "is_high_risk": False,
+            "ml_confidence": 0.88,
+            "fallback_used": False,
+        },
+        trust_score=0.78,
+        payout_amount=95,
+    )
+    assert result["decision"] == "delayed"
+    assert result["inputs"]["gps_spoof_detected"] is True
+    assert result["rule_id"] == "gps_spoof_review_override"
+
+
 def test_low_score_is_rejected():
     result = decision_engine.decide(
         disruption_score=0.2,

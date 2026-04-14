@@ -124,6 +124,7 @@ class ClaimProcessor:
         demo_run_id: Optional[str] = None,
         traffic_source: Optional[str] = None,
         pressure_profile: Optional[str] = None,
+        targeted_worker_ids: Optional[List[str]] = None,
     ) -> Dict:
         if not zones:
             zones = [zone.slug for zone in await location_service.get_active_zones(db, city_slug=city)]
@@ -170,6 +171,7 @@ class ClaimProcessor:
                     scenario=scenario,
                     traffic_source=normalized_traffic_source,
                     pressure_profile=pressure_profile,
+                    targeted_worker_ids=targeted_worker_ids,
                 )
                 results["details"].append(zone_result)
                 results["triggers_fired"][zone] = zone_result["triggers_fired"]
@@ -210,6 +212,7 @@ class ClaimProcessor:
         scenario: Optional[str] = None,
         traffic_source: str = "baseline",
         pressure_profile: str | None = None,
+        targeted_worker_ids: Optional[List[str]] = None,
     ) -> Dict:
         zone_result = {
             "zone": zone,
@@ -229,7 +232,8 @@ class ClaimProcessor:
         }
 
         zone_record = await location_service.resolve_zone(db, city, zone)
-        signals = await trigger_engine.fetch_all_signals(zone, city, db=db)
+        signal_mode = "demo" if scenario else "live"
+        signals = await trigger_engine.fetch_all_signals(zone, city, db=db, mode=signal_mode)
         zone_result["signals"] = {k: v for k, v in signals.items() if k != "raw_data" and isinstance(v, (int, float))}
         thresholds = trigger_engine.thresholds_for_zone(zone_record)
         fired = trigger_engine.evaluate_thresholds(signals, thresholds=thresholds)
@@ -259,7 +263,12 @@ class ClaimProcessor:
         zone_result["events_created"] = created
         zone_result["events_extended"] = extended
 
-        affected_workers = await trigger_engine.find_affected_workers(db, zone_record, fired)
+        affected_workers = await trigger_engine.find_affected_workers(
+            db,
+            zone_record,
+            fired,
+            worker_ids=targeted_worker_ids,
+        )
         for worker_info in affected_workers:
             for event in events:
                 try:

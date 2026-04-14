@@ -3,6 +3,7 @@ Tests for Sprint 2 trigger engine helpers.
 """
 
 from backend.core.trigger_engine import trigger_engine
+from backend.providers.registry import provider_registry
 
 
 class TestThresholdEvaluation:
@@ -28,3 +29,11 @@ class TestDisruptionScore:
         signals = {"rain": 100.0, "heat": 50, "aqi": 500, "traffic": 1.0, "platform_outage": 1.0, "social": 1.0}
         score = trigger_engine.calculate_disruption_score(signals)
         assert 0.0 <= score <= 1.0
+
+
+class TestSignalModes:
+    def test_demo_mode_forces_mock_providers(self):
+        assert provider_registry.configured_source("weather", source_mode="demo") == "mock"
+        assert provider_registry.configured_source("aqi", source_mode="demo") == "mock"
+        assert provider_registry.configured_source("traffic", source_mode="demo") == "mock"
+        assert provider_registry.configured_source("platform", source_mode="demo") == "mock"

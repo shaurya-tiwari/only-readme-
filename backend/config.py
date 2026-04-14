@@ -167,7 +167,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_signal_source_mode(cls, value: Any) -> str:
         normalized = str(value or "mock").strip().lower()
-        allowed = {"mock", "real", "shadow"}
+        allowed = {"mock", "real", "shadow", "demo"}
         if normalized not in allowed:
             raise ValueError(f"SIGNAL_SOURCE_MODE must be one of {sorted(allowed)}")
         return normalized
