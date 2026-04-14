@@ -50,6 +50,22 @@ async def lifespan(app: FastAPI):
         f"platform={settings.PLATFORM_OUTAGE_THRESHOLD}"
     )
 
+    # --- Phase 3 Feature Flag Dump (runtime truth, not config assumptions) ---
+    logger.info("=== Feature Flags ===")
+    logger.info("  SIGNAL_SOURCE_MODE=%s", settings.SIGNAL_SOURCE_MODE)
+    logger.info("  WEATHER_SOURCE=%s  AQI_SOURCE=%s  TRAFFIC_SOURCE=%s  PLATFORM_SOURCE=%s",
+                settings.WEATHER_SOURCE, settings.AQI_SOURCE, settings.TRAFFIC_SOURCE, settings.PLATFORM_SOURCE)
+    logger.info("  ENABLE_DECISION_MEMORY=%s", settings.ENABLE_DECISION_MEMORY)
+    logger.info("  ENABLE_SHADOW_DIFF_LOGGING=%s  ENABLE_SHADOW_DIFF_PERSISTENCE=%s",
+                settings.ENABLE_SHADOW_DIFF_LOGGING, settings.ENABLE_SHADOW_DIFF_PERSISTENCE)
+    logger.info("  ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE=%s", settings.ENABLE_PROVIDER_SNAPSHOT_PERSISTENCE)
+    logger.info("  SCHEDULER_IN_PROCESS=%s", settings.SCHEDULER_IN_PROCESS)
+    logger.info("  SESSION_COOKIE_SECURE=%s  SESSION_COOKIE_SAMESITE=%s",
+                settings.SESSION_COOKIE_SECURE, settings.SESSION_COOKIE_SAMESITE)
+    logger.info("  FILE_LOGGING_ENABLED=%s", settings.FILE_LOGGING_ENABLED)
+    logger.info("  DECISION_POLICY_VERSION=%s", settings.DECISION_POLICY_VERSION)
+    logger.info("=== End Feature Flags ===")
+
     if settings.DEBUG:
         await init_db()
         logger.info("Database tables initialized")
@@ -58,9 +74,11 @@ async def lifespan(app: FastAPI):
         await session.commit()
     logger.info("Geography bootstrap complete")
 
-    if settings.ENABLE_TRIGGER_SCHEDULER:
+    if settings.ENABLE_TRIGGER_SCHEDULER and settings.SCHEDULER_IN_PROCESS:
         await trigger_scheduler.start()
-        logger.info("Trigger scheduler enabled")
+        logger.info("Trigger scheduler enabled (in-process mode)")
+    elif settings.ENABLE_TRIGGER_SCHEDULER:
+        logger.info("Trigger scheduler enabled (run separately: python -m backend.scheduler_worker)")
     else:
         logger.info("Trigger scheduler disabled")
 
