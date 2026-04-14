@@ -1,0 +1,31 @@
+{
+  "version": "risk-model-v2",
+  "trained_at": "2026-04-04T17:46:39.193159+00:00",
+  "model_type": "GradientBoosting",
+  "gpu_enabled": false,
+  "metrics": {
+    "mae": 0.024,
+    "rmse": 0.0301,
+    "r2": 0.7678,
+    "train_mae": 0.0222,
+    "generalization_gap_pct": 0.0818
+  },
+  "feature_names": [
+    "city_base_risk",
+    "zone_profile_risk",
+    "month_sin",
+    "month_cos",
+    "incidents_7d",
+    "incidents_30d",
+    "rain_intensity",
+    "heat_index",
+    "aqi_normalized",
+    "traffic_congestion",
+    "platform_instability",
+    "worker_density",
+    "payout_pressure_30d"
+  ],
+  "n_samples": 49896,
+  "train_test_split": "80/20",
+  "training_source": "synthetic_data_generator"
+}

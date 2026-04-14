@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from typing import Any
 import joblib
 import pandas as pd
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class RiskPrediction:
@@ -36,6 +39,8 @@ class RiskModel:
         try:
             self.model = joblib.load(model_path)
             self.metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            version = self.metadata.get("version", "unknown")
+            logger.info(f"Successfully loaded Risk Model: {version}")
             self.available = True
             self.last_error = None
             return True
