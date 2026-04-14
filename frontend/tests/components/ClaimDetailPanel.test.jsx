@@ -10,7 +10,7 @@ describe("ClaimDetailPanel", () => {
     expect(screen.getByText(/Pick a claim incident/i)).toBeInTheDocument();
   });
 
-  it("renders fraud explainability and payout breakdown when a claim is present", () => {
+  it("renders claim check intensity and payout breakdown when a claim is present", () => {
     render(
       <ClaimDetailPanel
         claim={{
@@ -55,7 +55,7 @@ describe("ClaimDetailPanel", () => {
       />,
     );
 
-    expect(screen.getByText(/44% suspicious/i)).toBeInTheDocument();
+    expect(screen.getByText(/44% check intensity/i)).toBeInTheDocument();
     expect(screen.getByText(/fraud-model-v1 - hybrid scoring active/i)).toBeInTheDocument();
     expect(screen.getByText("Claim frequency")).toBeInTheDocument();
     expect(screen.getByText(/Gross hourly reference/i)).toBeInTheDocument();
