@@ -1,4 +1,5 @@
-import { humanizeSlug, statusPill } from "../utils/formatters";
+import { decisionConfidenceCopy, humanizeSlug, statusPill } from "../utils/formatters";
+import { workerClaimNarrative, workerNextStep } from "../utils/decisionNarrative";
 
 /**
  * Worker-facing decision panel — shows the most relevant claim context,
@@ -10,36 +11,29 @@ import { humanizeSlug, statusPill } from "../utils/formatters";
  */
 export default function DecisionPanel({ claim, narrative }) {
   const decisionState = claim?.status || "idle";
-  const score =
-    Number.isFinite(Number(claim?.final_score)) && Number(claim?.final_score) > 0
-      ? `${Math.round(Number(claim.final_score) * 100)}% confidence`
-      : "No active score";
+  const confidenceLabel = decisionConfidenceCopy(claim?.decision_confidence_band, claim?.status);
 
   let heading = "No active claim needs attention right now.";
   let reason =
     "RideShield is monitoring your zone and will create a claim automatically if a covered incident is verified.";
+  let nextStep = "You do not need to do anything right now.";
 
   if (claim?.status === "delayed") {
-    heading = "A delayed claim needs review context.";
-    reason =
-      claim.decision_breakdown?.explanation ||
-      claim.rejection_reason ||
-      "The latest claim moved into manual review because the engine found enough uncertainty to pause payout.";
+    heading = "Your latest claim is waiting for a manual check.";
+    reason = workerClaimNarrative(claim);
+    nextStep = workerNextStep(claim);
   } else if (claim?.status === "approved") {
     heading = "Your latest decision is already approved.";
-    reason =
-      claim.decision_breakdown?.explanation ||
-      "The latest covered incident passed policy, confidence, and fraud checks, so payout was released automatically.";
+    reason = workerClaimNarrative(claim);
+    nextStep = workerNextStep(claim);
   } else if (claim?.status === "rejected") {
     heading = "The latest claim was rejected.";
-    reason =
-      claim.rejection_reason ||
-      claim.decision_breakdown?.explanation ||
-      "The incident failed one or more validation checks, so the payout path was closed.";
+    reason = workerClaimNarrative(claim);
+    nextStep = workerNextStep(claim);
   }
 
   return (
-    <div className="decision-panel card-primary p-6 lg:sticky lg:top-24">
+    <div className="decision-panel card-primary p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="eyebrow">Decision panel</p>
@@ -49,13 +43,18 @@ export default function DecisionPanel({ claim, narrative }) {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <span className="pill bg-primary/10 text-primary">{score}</span>
+        <span className="pill bg-primary/10 text-primary">{confidenceLabel}</span>
         {claim?.id ? <span className="pill bg-white text-on-surface-variant">Claim {claim.id.slice(0, 6)}</span> : null}
       </div>
 
       <div className="mt-5 panel-quiet rounded-[24px] p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-on-surface-variant">Why this matters now</p>
         <p className="mt-3 text-sm leading-6 text-on-surface">{reason}</p>
+      </div>
+
+      <div className="mt-5 panel-quiet rounded-[24px] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-on-surface-variant">What happens next</p>
+        <p className="mt-3 text-sm leading-6 text-on-surface">{nextStep}</p>
       </div>
 
       <div className="mt-5 panel-quiet rounded-[24px] p-4">

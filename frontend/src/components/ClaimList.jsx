@@ -3,12 +3,12 @@ import { formatCurrency, formatDateTime, formatScore, humanizeSlug, statusPill }
 
 function reasoningLine(status) {
   if (status === "approved") {
-    return "Approved because disruption evidence stayed strong and fraud risk stayed low.";
+    return "Approved because the disruption evidence stayed strong and the account checks stayed clear.";
   }
   if (status === "delayed") {
     return "Delayed because the incident looks real but the system wants an admin decision before payout.";
   }
-  return "Rejected because the disruption or worker evidence was not strong enough for payout.";
+  return "Rejected because the disruption and account checks did not support a safe payout.";
 }
 
 export default function ClaimList({ claims = [], onSelect, compact = false }) {

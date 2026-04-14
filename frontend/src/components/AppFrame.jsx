@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Bell, BrainCircuit, LayoutDashboard, LogOut, PlaySquare, Settings, Shield, ShieldCheck, Siren, Sparkles } from "lucide-react";
+import { BrainCircuit, FlaskConical, LayoutDashboard, LogOut, PlaySquare, Settings, Shield, ShieldCheck, Siren, Sparkles } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 
 import { useAuth } from "../auth/AuthContext";
 import toast from "react-hot-toast";
+import { t, toggleLang, getLang } from "../utils/i18n";
 
 const workerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -12,6 +14,7 @@ const workerNav = [
 const adminNav = [
   { to: "/admin", label: "Admin Panel", icon: ShieldCheck },
   { to: "/demo", label: "Demo Runner", icon: PlaySquare },
+  { to: "/lab", label: "Scenario Lab", icon: FlaskConical },
   { to: "/intelligence", label: "Intelligence", icon: BrainCircuit },
 ];
 
@@ -19,11 +22,19 @@ export default function AppFrame({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, role, logout } = useAuth();
+  const [, setLangState] = useState(getLang());
+
+  function handleToggleLang() {
+    const next = toggleLang();
+    setLangState(next);
+  }
 
   const navItems = role === "admin" ? adminNav : workerNav;
   const title =
     location.pathname.startsWith("/demo")
       ? "Simulation Control"
+      : location.pathname.startsWith("/lab")
+        ? "Scenario Lab"
       : location.pathname.startsWith("/intelligence")
         ? "System Intelligence"
       : location.pathname.startsWith("/admin")
@@ -130,9 +141,17 @@ export default function AppFrame({ children }) {
                 <Siren size={16} />
                 Alert
               </button>
-              <button type="button" onClick={() => toast("You have no new notifications", { icon: "🔔" })} aria-label="Notifications" className="rounded-full bg-surface-container-high p-3 text-on-surface-variant transition hover:bg-surface-container-highest">
-                <Bell size={16} />
-              </button>
+              <NotificationBell />
+              {role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={handleToggleLang}
+                  className="rounded-full bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface-variant transition hover:bg-surface-container-highest"
+                  title="Switch language"
+                >
+                  {t("lang.toggle")}
+                </button>
+              )}
             </div>
           </div>
         </header>

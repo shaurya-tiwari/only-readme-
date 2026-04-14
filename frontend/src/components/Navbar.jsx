@@ -18,6 +18,7 @@ export default function Navbar({ session }) {
     ? [
         { to: "/intelligence", label: "Intelligence" },
         { to: "/demo", label: "Demo Runner" },
+        { to: "/lab", label: "Scenario Lab" },
         { to: "/admin", label: "Admin" },
       ]
     : [
