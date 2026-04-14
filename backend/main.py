@@ -149,9 +149,9 @@ async def log_requests(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "img-src 'self' data:; "
-        "style-src 'self' 'unsafe-inline'; "
-        "script-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://fastapi.tiangolo.com; "
         "connect-src 'self' http://localhost:8000 http://localhost:3000 http://localhost:3001;"
     )
     return response
