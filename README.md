@@ -34,6 +34,8 @@ RideShield is also available as a mobile-ready experience via an Android APK wra
 
 > Note: The mobile app may require an initial load to warm up the WebView, after which it runs in better manner.
 
+> **Note on Localization:** Localization (Hindi) is implemented for worker-facing flows (Dashboard & How-It-Works), since gig workers are the primary users. Admin and public pages remain in English for operational clarity.
+
 ---
 
 ## ✅ Requirement Coverage

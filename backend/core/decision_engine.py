@@ -941,15 +941,25 @@ class DecisionEngine:
             and trust_score <= 0.35
         )
         low_payout_confident_approve = (
-            payout_amount <= self.PAYOUT_CAPS["low_payout_confident"]
-            and adjusted_fraud <= 0.30
-            and trust_score >= 0.25
-            and event_confidence >= 0.65
-            and final_score >= 0.55
-            and automation_confidence >= 0.60
-            and flag_profile["strong_count"] == 0
-            and cluster_context["routing"] != "strong_review"
-            and uncertainty_case not in {"core_contradiction", "too_perfect_state"}
+            (
+                payout_amount <= 25.0
+                and adjusted_fraud <= 0.45
+                and final_score >= self.THRESHOLDS["delayed"]
+                and flag_profile["strong_count"] == 0
+                and cluster_context["routing"] != "strong_review"
+                and uncertainty_case != "core_contradiction"
+            )
+            or (
+                payout_amount <= self.PAYOUT_CAPS["low_payout_confident"]
+                and adjusted_fraud <= 0.30
+                and trust_score >= 0.25
+                and event_confidence >= 0.65
+                and final_score >= 0.55
+                and automation_confidence >= 0.60
+                and flag_profile["strong_count"] == 0
+                and cluster_context["routing"] != "strong_review"
+                and uncertainty_case not in {"core_contradiction", "too_perfect_state"}
+            )
         )
         weak_signal_confident_approve = (
             flag_profile["noise_only"]

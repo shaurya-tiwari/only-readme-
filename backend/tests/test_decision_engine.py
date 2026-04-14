@@ -27,6 +27,7 @@ def test_mid_score_is_delayed():
         event_confidence=0.6,
         fraud_result={"adjusted_fraud_score": 0.35, "raw_fraud_score": 0.45, "flags": ["movement"], "is_suspicious": True, "is_high_risk": False},
         trust_score=0.2,
+        payout_amount=100,
     )
     assert result["decision"] == "delayed"
     assert result["decision_confidence"] > 0
@@ -65,6 +66,7 @@ def test_low_trust_profile_with_same_band_stays_manual_review():
             "is_high_risk": False,
         },
         trust_score=0.15,
+        payout_amount=100,
     )
     assert result["decision"] == "delayed"
     assert result["inputs"]["trusted_low_risk_approve"] is False

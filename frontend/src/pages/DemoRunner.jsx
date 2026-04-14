@@ -16,7 +16,7 @@ function buildActivityLog(latestResult, city) {
     return [
       `Monitoring ${humanizeSlug(city)} for the next pinned demo run.`,
       "No deterministic demo story has been executed in this session yet.",
-      "Use one of the three fixed demo stories to run a repeatable claim flow.",
+      "Use one of the four fixed demo stories to run a repeatable claim flow.",
     ];
   }
 
@@ -143,7 +143,7 @@ export default function DemoRunner() {
           <p className="eyebrow">Demo runner</p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight text-primary">Deterministic Demo Runner</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-on-surface-variant">
-            Run three fixed RideShield stories with pinned worker profiles, pinned Delhi zones, and repeatable claim
+            Run four fixed RideShield stories with pinned worker profiles, pinned Delhi zones, and repeatable claim
             outcomes. This keeps the demo stable instead of depending on live variance.
           </p>
         </div>

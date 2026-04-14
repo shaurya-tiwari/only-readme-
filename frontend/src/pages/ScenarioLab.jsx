@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlaskConical, PlayCircle, Save, Trash2 } from "lucide-react";
 
 import { locationsApi } from "../api/locations";
@@ -451,7 +451,7 @@ export default function ScenarioLab() {
                     </button>
                   </div>
                   <p className="mt-2 text-sm text-on-surface-variant">
-                    {humanizeSlug(preset.config.city)} Â· {preset.config.zones.map(humanizeSlug).join(", ")}
+                    {humanizeSlug(preset.config.city)} · {preset.config.zones.map(humanizeSlug).join(", ")}
                   </p>
                 </div>
               )) : (
@@ -514,14 +514,14 @@ export default function ScenarioLab() {
                 <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
                   <p className="text-sm text-on-surface-variant">Worker</p>
                   <p className="mt-2 font-semibold text-primary">
-                    {latestRun.worker?.name || "No seeded worker"} {latestRun.worker?.profile ? `Â· ${humanizeSlug(latestRun.worker.profile)}` : ""}
+                    {latestRun.worker?.name || "No seeded worker"} {latestRun.worker?.profile ? `· ${humanizeSlug(latestRun.worker.profile)}` : ""}
                   </p>
                 </div>
                 <div className="rounded-[18px] border border-primary/8 bg-surface-container-low/80 p-4">
                   <p className="text-sm text-on-surface-variant">Trigger summary</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {triggerSummary.length ? triggerSummary.map(([trigger, count]) => (
-                      <span key={trigger} className="pill-subtle">{humanizeSlug(trigger)} Â· {count}</span>
+                      <span key={trigger} className="pill-subtle">{humanizeSlug(trigger)} · {count}</span>
                     )) : <span className="text-sm text-on-surface-variant">No triggers crossed.</span>}
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export default function ScenarioLab() {
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-on-surface-variant">
-                          Rain {detail.signals?.rain ?? 0} Â· Heat {detail.signals?.heat ?? 0} Â· AQI {detail.signals?.aqi ?? 0} Â· Traffic {detail.signals?.traffic ?? 0} Â· Platform {detail.signals?.platform_outage ?? 0}
+                          Rain {detail.signals?.rain ?? 0} · Heat {detail.signals?.heat ?? 0} · AQI {detail.signals?.aqi ?? 0} · Traffic {detail.signals?.traffic ?? 0} · Platform {detail.signals?.platform_outage ?? 0}
                         </p>
                       </div>
                     ))}

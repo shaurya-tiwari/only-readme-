@@ -89,6 +89,12 @@ export default function Home() {
             </Link>
           </div>
 
+          {!isAuthenticated && (
+            <p className="mt-5 text-sm font-medium text-white/60 flex items-center gap-2 fade-in-up">
+              Worker dashboard supports Hindi 🇮🇳
+            </p>
+          )}
+
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             <div className="rounded-[24px] bg-white/10 p-4 transition-smooth hover:bg-white/15">
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">{t("home.models.claim_model.label")}</p>
