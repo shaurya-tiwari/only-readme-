@@ -2,14 +2,11 @@
 
 # 🛵 RideShield — Parametric AI Insurance for Gig Delivery Workers
 
-<<<<<<< HEAD
 > [!TIP]
 > **View Repo Content:** &nbsp;  &nbsp; | &nbsp; 🏗️ **[Architecture & Roadmap](README2.md)**
 
 ---
 
-=======
->>>>>>> 6a2eb6a77d6162e55ae21d81f1b903de49598d8b
 > **"Claims are automatically initiated by the system. Delivery partners never file claims."**
 
 A recharge-style, AI-powered parametric insurance system that protects gig delivery workers' income in real-time — triggered by rain, extreme heat, pollution, platform outages, and curfews — using multi-signal fraud detection, duplicate claim prevention, and zero-touch payouts.
@@ -1035,6 +1032,15 @@ Phase 1 is architecture and documentation. The next two phases build and polish 
 - **Insurer partnerships** — RideShield as white-label infrastructure for insurance providers serving the gig economy
 
 > The long-term goal is simple: no gig worker should experience income loss without immediate, automated financial protection.
+
+---
+
+## ✨ Recent Enhancements (Deployment & Polish)
+
+*   **PWA Ready:** Implemented strict routing overwrites for Vercel ensuring deep-linked client routes (`/dashboard`, `/onboarding`) resolve natively without 404ing against standard browser resets.
+*   **Railway Ecosystem Prepared:** Bound backend API natively to dynamic `0.0.0.0:$PORT` listeners, removing container constraints. Patched strict Content Security Policy configuration blockages for the embedded Swagger UI (`/docs`) in production.
+*   **Fraud Fingerprinting:** Implemented browser hashing heuristics capturing `UserAgent`, screen telemetry, and timezone info inside the JWT onboarding sequence to natively build worker cluster associations directly inside PostgreSQL logs.
+*   **Reactive UI Elements:** Introduced `useLang`, a custom `Set()` based micro-subscription hook triggering on-the-fly component rerenders across English and Hindi for maximum worker operability without page reloading.
 
 ---
 

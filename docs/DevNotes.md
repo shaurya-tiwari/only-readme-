@@ -976,6 +976,21 @@ Audit items that were already resolved by the branch before the merge:
 - worker dashboard ownership redirect already existed in `ProtectedRoute`
 - public pages were no longer blocked behind a global app-wide boot spinner
 
+### Final Deployment & Polish Fixes (2026-04-14)
+
+Infrastructure & Routing:
+- **FastAPI / Railway**: Configured dynamic `$PORT` binding in `main.py` and `uvicorn` runner for seamless serverless deployment.
+- **Swagger UI CSP Fix**: Loosened strictly typed `Content-Security-Policy` headers to permit CDN loading of `swagger-ui` assets on `/docs`, fixing an all-white page deployment issue.
+- **Vercel React PWA Routing**: Implemented `vercel.json` rewrite rules strictly passing unmatched routes directly to `/index.html` preventing 404s for SPA nested paths (`/onboarding`, `/dashboard`).
+
+Fraud & Device Validation:
+- **Device Fingerprinting Utility**: Introduced `frontend/src/utils/fingerprint.js` performing cross-browser hashing of user agent, timezone, and screen metrics to isolate multi-account fraud on single hardware.
+- **Registration & Auth Payload**: Bound device fingerprint into `WorkerRegisterRequest` payload in `Onboarding.jsx` and `AuthContext.jsx`. Backwards compatible safely given default Postgres `device_fingerprint` is nullable. Existing worker records naturally upgrade on next login.
+- **Trust & Manual Overrides**: Reinstated auto-healing logic inside `TriggerEngine`, ensuring that direct PGAdmin/Railway DB edits toggling policies between `pending` and `active` gracefully sync `activates_at` timestamps without system collapse. 
+
+Frontend Rendering Enhancements:
+- **Reactive Localization Framework**: Ripped out legacy `.reload()` toggling mechanism, replacing it with a robust micro-subscription model via `useLang` hook that enforces `Set()` based reactive triggers. Subscribed components (`AppFrame`, `Dashboard`, `ClaimDetailPanel`) shift instantly between English and Hindi locally.
+
 Residual backlog that still matters after the audit:
 - move more local secrets and convenience credentials out of committed dev config paths
 - broaden frontend coverage further into admin/demo surfaces such as `DemoRunner` and `IntelligenceOverview`
