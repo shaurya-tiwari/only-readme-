@@ -74,12 +74,15 @@ This script is idempotent and only bootstraps `system_status` plus the default `
 ### Deployment Note: Vercel Proxy
 
 For production, the frontend only talks to `/api/proxy`.
-The Vercel serverless proxy then forwards requests to Railway using `BACKEND_URL`.
+The Vercel serverless proxy then forwards requests to Railway.
 
-Required Vercel environment variable:
+`vercel.json` rewrite (hardcoded - env vars not supported in rewrites):
 
-```bash
-BACKEND_URL=https://ride-shield-backend-production.up.railway.app
+```json
+{
+  "source": "/api/proxy/:path*",
+  "destination": "https://ride-shield-backend-production.up.railway.app/:path*"
+}
 ```
 
 `VITE_API_URL` should not be set in Vercel for this architecture.

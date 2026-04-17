@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/proxy/:path*",
-      "destination": "/api/proxy"
+      "destination": "https://ride-shield-backend-production.up.railway.app/:path*"
     },
     { "source": "/(.*)", "destination": "/" }
   ]
