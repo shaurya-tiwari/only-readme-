@@ -27,6 +27,8 @@ ENV/
 *.swp
 *.swo
 logs/
+error.log
+test_report.txt
 
 # OS / local noise
 .DS_Store
