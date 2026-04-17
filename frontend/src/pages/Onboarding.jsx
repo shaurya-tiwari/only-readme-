@@ -408,6 +408,7 @@ export default function Onboarding() {
         consent_given: form.consent_given,
         device_fingerprint: getDeviceFingerprint(),
       });
+      await loginWorker(form.phone, form.password);
       setRegistration(response.data);
       setPlanCatalog([]);
       setPlanCatalogError("");
@@ -434,10 +435,12 @@ export default function Onboarding() {
         worker_id: registration.worker_id,
         plan_name: selectedPlan,
       });
-      setPolicyPurchase(response.data);
-      setStep("complete");
       window.sessionStorage.removeItem(STORAGE_KEYS.onboardingDraft);
       toast.success(t("onboarding.errors.purchase_success"));
+      const workerId = registration?.worker_id;
+      if (workerId) {
+        navigate(`/dashboard/${workerId}`);
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || t("onboarding.errors.purchase_failed"));
     } finally {
