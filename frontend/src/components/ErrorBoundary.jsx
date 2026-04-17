@@ -1,17 +1,30 @@
 import { Component } from "react";
+import { logError } from "../utils/logger";
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
-  componentDidCatch(error) {
-    console.error("RideShield UI boundary caught an error", error);
+  componentDidCatch(error, errorInfo) {
+    const route = window.location.pathname;
+    logError({
+      code: "RUNTIME_ERROR",
+      route,
+      isDuplicate: false,
+      severity: "high",
+      details: {
+        message: error?.message || String(error),
+        stack: error?.stack,
+        componentStack: errorInfo?.componentStack,
+      },
+    });
+    console.error("RideShield UI Error:", error, errorInfo);
   }
 
   render() {

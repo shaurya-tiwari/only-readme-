@@ -1,26 +1,30 @@
 /**
  * Local-First Observability Logger
- * 
+ *
  * Captures structured error payloads for UX telemetry.
- * Currently uses console metrics to avoid premature vendor lock-in.
- * 
- * Drop-in replacement ready for Sentry, PostHog, or Datadog in the future.
+ * Uses console.error for Vercel/server log capture.
  */
 
-export function logError({ code, route, isDuplicate, severity }) {
+export function logError({ code, route, isDuplicate, severity, details }) {
   const payload = {
     code,
     route,
     isDuplicate,
     severity,
-    ts: Date.now(),
+    ts: new Date().toISOString(),
+    ...(details && { details }),
   };
 
-  // Skip spamming the logs with debounced redundant errors
   if (isDuplicate) return;
 
-  // Use structure for clean dashboard observability simulation
-  console.groupCollapsed(`[Observability] Error Context: ${code}`);
-  console.table(payload);
-  console.groupEnd();
+  console.error(`[RideShield Error] ${code}`, JSON.stringify(payload, null, 2));
+}
+
+export function logInfo(message, data) {
+  if (import.meta.env.PROD) return;
+  console.log(`[RideShield] ${message}`, data || "");
+}
+
+export function logWarning(message, data) {
+  console.warn(`[RideShield Warning] ${message}`, data || "");
 }

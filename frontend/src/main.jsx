@@ -8,6 +8,14 @@ import "./i18n/config";
 import "./index.css";
 import { ThemeProvider } from "./theme/ThemeContext";
 
+window.addEventListener("error", (event) => {
+  console.error("[RideShield Global Error]", event.error);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("[RideShield Unhandled Promise Rejection]", event.reason);
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
