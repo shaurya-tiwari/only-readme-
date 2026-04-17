@@ -152,20 +152,33 @@ export default function Onboarding() {
     const safeCatalog = Array.isArray(planCatalog) ? planCatalog : [];
     return safeCatalog.length ? safeCatalog : (Array.isArray(registration?.available_plans) ? registration.available_plans : []);
   }, [planCatalog, registration?.available_plans]);
-  const safePlanOptions = Array.isArray(planOptions) ? planOptions : [];
-  const recommendedPlanName =
-    safePlanOptions.find((plan) => plan.is_recommended)?.plan_name ||
-    registration?.recommended_plan ||
-    "";
-  const selectedPlanData =
-    safePlanOptions.find((plan) => plan.plan_name === selectedPlan) ||
-    (Array.isArray(registration?.available_plans) ? registration.available_plans : []).find(
-      (plan) => plan.plan_name === selectedPlan,
+
+  const safePlanOptions = useMemo(() => {
+    return Array.isArray(planOptions) ? planOptions : [];
+  }, [planOptions]);
+
+  const recommendedPlanName = useMemo(() => {
+    return (
+      safePlanOptions.find((plan) => plan.is_recommended)?.plan_name ||
+      registration?.recommended_plan ||
+      ""
     );
+  }, [safePlanOptions, registration?.recommended_plan]);
+
+  const selectedPlanData = useMemo(() => {
+    return (
+      safePlanOptions.find((plan) => plan.plan_name === selectedPlan) ||
+      (Array.isArray(registration?.available_plans) ? registration.available_plans : []).find(
+        (plan) => plan.plan_name === selectedPlan,
+      )
+    );
+  }, [safePlanOptions, selectedPlan, registration?.available_plans]);
+
   const featuredPlans = useMemo(
     () => getFeaturedPlans(safePlanOptions, selectedPlan, recommendedPlanName),
-    [safePlanOptions, recommendedPlanName, selectedPlan],
+    [safePlanOptions, selectedPlan, recommendedPlanName],
   );
+
   const additionalPlans = useMemo(() => {
     const safeFeatured = Array.isArray(featuredPlans) ? featuredPlans : [];
     return safePlanOptions.filter(
@@ -174,7 +187,7 @@ export default function Onboarding() {
           (featuredPlan) => featuredPlan.plan_name === plan.plan_name,
         ),
     );
-  }, [featuredPlans, safePlanOptions]);
+  }, [safePlanOptions, featuredPlans]);
   const stepIndex = steps.findIndex((item) => item.id === step);
   const progressWidth = `${((stepIndex + 1) / steps.length) * 100}%`;
   const validationErrors = useMemo(() => validateRegistration(form), [form]);
@@ -359,26 +372,6 @@ export default function Onboarding() {
     setTouched((current) => ({ ...current, [field]: true }));
   }
 
-  async function handleOpenDashboard() {
-    setLoading(true);
-    try {
-      const result = await loginWorker(form.phone, form.password);
-      const workerId = result?.session?.worker_id || registration?.worker_id;
-      if (workerId) {
-        navigate(`/dashboard/${workerId}`);
-      } else {
-        toast.error(t("onboarding.errors.login_failed"));
-      }
-    } catch (error) {
-      toast.error(
-        error.response?.data?.detail ||
-        t("onboarding.errors.login_failed"),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleRegister(event) {
     event.preventDefault();
     const nextTouched = {
@@ -408,7 +401,6 @@ export default function Onboarding() {
         consent_given: form.consent_given,
         device_fingerprint: getDeviceFingerprint(),
       });
-      await loginWorker(form.phone, form.password);
       setRegistration(response.data);
       setPlanCatalog([]);
       setPlanCatalogError("");
@@ -431,16 +423,15 @@ export default function Onboarding() {
     }
     setLoading(true);
     try {
-      const response = await policiesApi.create({
+      await policiesApi.create({
         worker_id: registration.worker_id,
         plan_name: selectedPlan,
       });
+      await loginWorker(form.phone, form.password);
+      setPolicyPurchase({ plan: { plan_display_name: selectedPlan } });
+      setStep("complete");
       window.sessionStorage.removeItem(STORAGE_KEYS.onboardingDraft);
       toast.success(t("onboarding.errors.purchase_success"));
-      const workerId = registration?.worker_id;
-      if (workerId) {
-        navigate(`/dashboard/${workerId}`);
-      }
     } catch (error) {
       toast.error(error.response?.data?.detail || t("onboarding.errors.purchase_failed"));
     } finally {
@@ -451,6 +442,15 @@ export default function Onboarding() {
   const summaryLine = useMemo(() => {
     return `${humanizeSlug(form.city)} - ${humanizeSlug(form.zone)} - ${humanizeSlug(form.platform)}`;
   }, [form.city, form.zone, form.platform]);
+
+  useEffect(() => {
+    if (step === "complete" && registration?.worker_id) {
+      const timer = setTimeout(() => {
+        navigate(`/dashboard/${registration.worker_id}`);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [step, registration?.worker_id, navigate]);
 
   if (step === "complete" && registration && policyPurchase) {
     return (
@@ -472,22 +472,21 @@ export default function Onboarding() {
             <div className="rounded-3xl bg-surface-container-high border border-surface-container-highest p-5">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant">{t("onboarding.complete.policy")}</p>
               <p className="mt-2 text-2xl font-bold">
-                {policyPurchase.policy.plan_display_name}
+                {policyPurchase.plan.plan_display_name}
               </p>
               <p className="mt-2 text-sm text-primary">
-                {t("onboarding.complete.premium", { amount: formatCurrency(selectedPlanData.weekly_premium) })}
+                {t("onboarding.complete.premium", { amount: formatCurrency(selectedPlanData?.weekly_premium) })}
               </p>
             </div>
           </div>
-
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
               className="button-primary"
               disabled={loading}
-              onClick={handleOpenDashboard}
+              onClick={() => navigate(`/dashboard/${registration.worker_id}`)}
             >
-              {loading ? t("onboarding.complete.opening") : t("onboarding.complete.open_dashboard")}
+              {t("onboarding.complete.open_dashboard")}
             </button>
             <button
               type="button"

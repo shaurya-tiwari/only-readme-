@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     DECISION_REASON_LIMIT: int = 3
     POLICY_TRUTH_TRAFFIC_SOURCES: str = "baseline"
     POLICY_SYNTHETIC_TRAFFIC_SOURCES: str = "simulation_pressure,scenario,replay_amplified"
-    SIGNAL_SNAPSHOT_RETENTION_DAYS: int = 14
+    SIGNAL_SNAPSHOT_RETENTION_DAYS: int = 1
     SHADOW_DIFF_RETENTION_DAYS: int = 14
     SIGNAL_RETENTION_CLEANUP_INTERVAL: int = 100
     SHADOW_DIFF_ALERT_DELTA: float = 0.15

@@ -14,6 +14,7 @@ import logging
 import sys
 
 from backend.config import settings
+from backend.core.cleanup import cleanup_old_snapshots
 from backend.core.location_service import location_service
 from backend.core.runtime_logging import configure_logging
 from backend.core.trigger_scheduler import trigger_scheduler
@@ -49,8 +50,17 @@ async def main():
         await trigger_scheduler.start()
         logger.info("Scheduler loop running. Press Ctrl+C to stop.")
         # Keep the process alive until interrupted
+        cleanup_count = 0
         while True:
             await asyncio.sleep(1)
+            cleanup_count += 1
+            if cleanup_count >= 1800:  # every 30 min
+                try:
+                    await cleanup_old_snapshots()
+                    logger.info("Snapshot cleanup done")
+                except Exception as e:
+                    logger.error("Snapshot cleanup failed: %s", e)
+                cleanup_count = 0
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Scheduler worker interrupted")
     finally:
