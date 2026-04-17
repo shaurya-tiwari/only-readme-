@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     ML_ARTIFACT_DIR: str = "backend/ml/artifacts"
     RISK_ML_ARTIFACT_DIR: str | None = "backend/ml/artifacts_v2"
     FRAUD_ML_ARTIFACT_DIR: str | None = "backend/ml/artifacts"
+    
+    # Meta WhatsApp Integration
+    META_ACCESS_TOKEN: Optional[str] = None
+    PHONE_NUMBER_ID: Optional[str] = None
+    VERIFY_TOKEN: str = "rideshield_verify_token"
+    WHATSAPP_BUSINESS_ACCOUNT_ID: Optional[str] = None
+
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://rideshield:rideshield123@localhost:5433/rideshield_db"

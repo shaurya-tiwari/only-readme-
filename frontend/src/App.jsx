@@ -6,6 +6,7 @@ import AppFrame from "./components/AppFrame";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicShell from "./components/PublicShell";
+import WhatsAppFloatingButton from "./components/WhatsAppFloatingButton";
 
 const Auth = lazy(() => import("./pages/Auth"));
 const Home = lazy(() => import("./pages/Home"));
@@ -148,6 +149,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AppShell />
+        <WhatsAppFloatingButton />
       </AuthProvider>
     </ErrorBoundary>
   );

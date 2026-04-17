@@ -609,5 +609,9 @@
             "how_it_works": "How It Works",
             "onboarding": "Onboarding"
         }
+    },
+    "whatsapp": {
+        "chat_on": "Chat on WhatsApp",
+        "tooltip": "Need help? Message us on WhatsApp"
     }
 }

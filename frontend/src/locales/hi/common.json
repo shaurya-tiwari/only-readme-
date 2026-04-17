@@ -609,5 +609,9 @@
             "how_it_works": "यह कैसे काम करता है",
             "onboarding": "ऑनबोर्डिंग"
         }
+    },
+    "whatsapp": {
+        "chat_on": "WhatsApp पर चैट करें",
+        "tooltip": "मदद चाहिए? WhatsApp पर हमें संदेश भेजें"
     }
 }

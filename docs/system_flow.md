@@ -56,6 +56,7 @@ Use these credentials to authenticate as a worker and evaluate active policies, 
 - Event-centric claim handling with deduplication
 - Hybrid fraud detection (ML + rule-based fallback)
 - Worker and admin dashboards with full decision explainability
+- **WhatsApp Conversational Interface** for low-friction onboarding and proactive alerts
 
 ---
 
@@ -89,7 +90,8 @@ At its core, RideShield transforms real-world disruptions into validated financi
 - **Frontend:** React, Vite, Tailwind CSS, Recharts
 - **Backend:** FastAPI, SQLAlchemy, Alembic
 - **Database:** PostgreSQL
-- **Machine Learning:** scikit-learn models (RandomForest and GradientBoosting) generating deterministic probabilistic scores for fraud and Risk, bounded by a strict policy-driven logic layer. Models are pre-trained on intelligently constrained synthetic data (50k limit) with injected edge cases, keeping generalization gaps tight (< 2%).
+- **Machine Learning:** scikit-learn models (RandomForest and GradientBoosting)
+- **WhatsApp Integration:** Meta WhatsApp Cloud API (v19.0)
 - **Demo inputs:** local mock simulation modules
 
 ---
@@ -108,6 +110,8 @@ At its core, RideShield transforms real-world disruptions into validated financi
 - hybrid fraud scoring with ML + rule fallback
 - forecast analytics and model-status endpoints
 - cookie-based auth with bearer fallback for Swagger/tests
+- **WhatsApp-based worker onboarding & status checks**
+- **Proactive WhatsApp disruption alerts**
 
 ### ⚙️ Still Simulated or Simplified
 
@@ -229,6 +233,13 @@ This starts Docker Postgres, FastAPI backend, and Vite frontend.
    - payout breakdown with operating-cost adjustment
    - fraud review context when a claim is delayed
    - nearby incidents
+232: 
+233: ### WhatsApp Worker (Conversational)
+234: 1. Send "hi" to the RideShield WhatsApp number
+235: 2. Follow the automated flow to register (name, city, platform)
+236: 3. Select a plan and "pay" via simulated checkout
+237: 4. Check policy status anytime by sending "status"
+238: 5. Receive proactive push alerts when a disruption is detected in your zone
 
 ---
 
@@ -327,3 +338,4 @@ Use local runtime diagnostics to inspect:
 - [Architecture](architecture.md)
 - [Intelligence Layer](intelligence.md)
 - [Future Roadmap](future_roadmap.md)
+- [WhatsApp Integration](whatsapp_integration.md)

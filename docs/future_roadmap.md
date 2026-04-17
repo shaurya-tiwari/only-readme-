@@ -28,26 +28,20 @@ Introduce telecom-backed identity binding:
 
 ---
 
-## 2. Conversational Interface Layer (WhatsApp/SMS)
+## 2. Real-World Payment Gateway Integration
 
-Enable full interaction without requiring a web app:
+Transition from simulated payment flows to live financial transactions:
 
-- Plan purchase via WhatsApp
-- Claim and disruption alerts via SMS
-- Weekly reminders and renewal nudges
+- Integrate production-grade payment providers (Razorpay Live, Stripe, or BillDesk)
+- Support for recurring mandates (eSubscription) for weekly premium collections
+- Automated reconciliation between payment success events and policy activation
 
 **Impact:**
-- Matches gig worker behavior (WhatsApp is the primary communication channel)
-- Reduces onboarding friction to near-zero
-- Improves retention through proactive engagement
+- Enables real revenue collection
+- Automates the full policy lifecycle from purchase to activation
+- Provides legally binding transaction records for insurance compliance
 
-**User flow:**
-1. Worker sends "Hi" to RideShield WhatsApp Business number
-2. System authenticates via phone number + OTP
-3. Worker can: check plan status, purchase plan, view payout history, receive disruption alerts
-4. Proactive alerts sent when disruption is forecast or active in worker's zone
-
-**Why this matters:** Rahul shouldn't need a browser. He should be able to manage his coverage from the same app he uses to chat with his family.
+**Why this matters:** A mock payment gateway is helpful for demos, but true insurance infrastructure requires the trust and security of established financial bridges.
 
 ---
 
@@ -167,7 +161,7 @@ Risk calibration across geographies:
 
 | Phase | Feature | Priority | Effort |
 |-------|---------|----------|--------|
-| 1 | Conversational Interface (WhatsApp) | High | Medium |
+| 1 | Real-World Payment Gateway | High | High |
 | 1 | Telecom Identity Layer | High | High |
 | 2 | Platform Wallet Integration | High | High |
 | 2 | Federated Telemetry | Medium | High |
@@ -180,7 +174,7 @@ Risk calibration across geographies:
 ## Strategic Positioning
 
 ### Phase 1 → Phase 2 Transition
-- Build WhatsApp distribution first (lowest friction, highest retention)
+- Scale WhatsApp distribution (Live now, optimizing for retention)
 - Layer identity + telemetry as fraud baseline improves
 - Platform partnerships unlock wallet integration
 

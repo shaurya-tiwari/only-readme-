@@ -72,6 +72,10 @@ This file is the repo-local contract map for the current implementation on `main
 - `GET /api/payouts/detail/{payout_id}`
 - `GET /api/payouts/stats`
 
+### WhatsApp Webhook
+- `GET /api/whatsapp/webhook` (Verification)
+- `POST /api/whatsapp/webhook` (Incoming messages)
+
 ### Analytics
 - `GET /api/analytics/admin-overview`
 - `GET /api/analytics/admin-forecast`

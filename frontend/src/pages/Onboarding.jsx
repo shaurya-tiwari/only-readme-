@@ -148,15 +148,14 @@ export default function Onboarding() {
   const [touched, setTouched] = useState({});
   const [showAllPlans, setShowAllPlans] = useState(false);
 
-  const planOptions = useMemo(() => {
-    const safeCatalog = Array.isArray(planCatalog) ? planCatalog : [];
-    return safeCatalog.length ? safeCatalog : (Array.isArray(registration?.available_plans) ? registration.available_plans : []);
-  }, [planCatalog, registration?.available_plans]);
-
   const safePlanOptions = useMemo(() => {
-    return Array.isArray(planOptions) ? planOptions : [];
-  }, [planOptions]);
-
+    const safeCatalog = Array.isArray(planCatalog) ? planCatalog : [];
+    return safeCatalog.length
+      ? safeCatalog
+      : Array.isArray(registration?.available_plans)
+        ? registration.available_plans
+        : [];
+  }, [planCatalog, registration?.available_plans]);
   const recommendedPlanName = useMemo(() => {
     return (
       safePlanOptions.find((plan) => plan.is_recommended)?.plan_name ||

@@ -16,6 +16,10 @@ from backend.core.income_verifier import income_verifier
 from backend.core.location_service import location_service
 from backend.core.payout_executor import payout_executor
 from backend.core.trigger_engine import trigger_engine
+from backend.core.whatsapp_flow_manager import whatsapp_flow
+from backend.providers.whatsapp_meta import whatsapp_meta
+from backend.providers.whatsapp_settings_service import whatsapp_settings
+from backend.utils.whatsapp_localization import get_string
 from backend.db.models import AuditLog, Claim, Event, Policy, TrustScore, Worker
 from backend.utils.time import utc_now_naive
 from simulations.aqi_mock import aqi_simulator
@@ -284,6 +288,16 @@ class ClaimProcessor:
                         fired_triggers=worker_info["fired_triggers"],
                         traffic_source=traffic_source,
                     )
+                    
+                    # Proactive WhatsApp alert if not a duplicate
+                    if claim_result["status"] not in ("duplicate", "error"):
+                        try:
+                            phone = worker_info["worker"].phone
+                            lang = await whatsapp_settings.get_user_lang(phone)
+                            trigger = event.event_type
+                            await whatsapp_meta.send_proactive_coverage_alert(phone, trigger, lang=lang)
+                        except Exception:
+                            logger.error(f"Failed to send proactive WA alert to {worker_info['worker'].id}", exc_info=True)
                 except Exception as exc:
                     logger.warning(
                         "worker_claim_failed worker_id=%s event_id=%s error=%s",
@@ -625,6 +639,22 @@ class ClaimProcessor:
                 body=f"Your claim for {trigger.replace('_', ' ')} did not meet the criteria for automatic payout. You can view the details in your claim history.",
                 metadata={"claim_id": str(claim.id), "reason": decision_result.get("explanation", "")},
             )
+
+        # Bilingual WhatsApp notification
+        try:
+            lang = await whatsapp_settings.get_user_lang(worker.phone)
+            wa_body = ""
+            if decision == "approved":
+                wa_body = get_string("payout_done", lang=lang, amount=int(payout_amount))
+            elif decision == "delayed":
+                wa_body = get_string("claim_triggered", lang=lang)
+            # We don't necessarily want to spam rejections on WA unless requested, 
+            # but for now we follow the logic: approved/credited.
+            
+            if wa_body:
+                await whatsapp_meta.send_text_message(worker.phone, wa_body)
+        except Exception:
+            logger.error(f"Failed to send bilingual WA notification for claim {claim.id}", exc_info=True)
 
 
 claim_processor = ClaimProcessor()

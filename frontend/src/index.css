@@ -1,18 +1,18 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ═══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    RIDESHIELD DUAL DESIGN SYSTEM
-   Light: Clarity · Trust · Banking-grade   (solid surfaces)
-   Dark:  Cinematic · Premium · Autonomous  (depth + glow)
-═══════════════════════════════════════════════════════════════ */
+   Light: Clarity Â· Trust Â· Banking-grade   (solid surfaces)
+   Dark:  Cinematic Â· Premium Â· Autonomous  (depth + glow)
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 @layer base {
 
-  /* ── LIGHT MODE TOKENS ─────────────────────────────────────── */
+  /* â”€â”€ LIGHT MODE TOKENS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   :root {
     color-scheme: light;
 
@@ -59,7 +59,7 @@
     --bg-hero-gradient: linear-gradient(160deg, #FFFFFF 0%, #FAFAFA 50%, #F4F4F5 100%);
   }
 
-  /* ── DARK MODE TOKENS ──────────────────────────────────────── */
+  /* â”€â”€ DARK MODE TOKENS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .dark {
     color-scheme: dark;
 
@@ -111,7 +111,7 @@
       linear-gradient(135deg, #0f172a 0%, #09090B 100%);
   }
 
-  /* ── HTML / BODY ───────────────────────────────────────────── */
+  /* â”€â”€ HTML / BODY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   html {
     background: var(--rs-bg);
   }
@@ -155,7 +155,7 @@
     -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 10%, transparent 80%);
   }
 
-  /* Subtle film grain — dark only */
+  /* Subtle film grain â€” dark only */
   .dark body::after {
     content: "";
     position: fixed;
@@ -210,14 +210,22 @@
       animation: none;
     }
   }
+
+  @keyframes pulse-emerald {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  }
+  .animate-pulse-emerald {
+    animation: pulse-emerald 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   COMPONENT CLASSES — Dual variants, zero inversion
-═══════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   COMPONENT CLASSES â€” Dual variants, zero inversion
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @layer components {
 
-  /* ── CARD ──────────────────────────────────────────────────── */
+  /* â”€â”€ CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   /*
    Light: solid white, crisp border, soft shadow
    Dark:  dark surface, subtle backdrop blur, glow on hover
@@ -245,7 +253,7 @@
     border-color: #3f3f46;
   }
 
-  /* ── CARD ELEVATED ─────────────────────────────────────────── */
+  /* â”€â”€ CARD ELEVATED â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .card-elevated {
     @apply rounded-2xl transition-all duration-300;
     background: var(--rs-elevated);
@@ -259,7 +267,7 @@
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
-  /* ── PANEL (used on Onboarding/Auth forms) ─────────────────── */
+  /* â”€â”€ PANEL (used on Onboarding/Auth forms) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .panel {
     @apply rounded-3xl transition-all duration-300;
     background: var(--rs-surface);
@@ -273,7 +281,7 @@
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* ── CONTEXT PANEL ─────────────────────────────────────────── */
+  /* â”€â”€ CONTEXT PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .context-panel {
     @apply rounded-3xl transition-all duration-200;
     background: var(--rs-surface);
@@ -287,7 +295,7 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
-  /* ── PASSIVE PANEL ─────────────────────────────────────────── */
+  /* â”€â”€ PASSIVE PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .passive-panel {
     @apply rounded-3xl;
     background: var(--rs-elevated);
@@ -300,7 +308,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
-  /* ── PANEL MUTED / QUIET ───────────────────────────────────── */
+  /* â”€â”€ PANEL MUTED / QUIET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .panel-muted {
     @apply rounded-3xl;
     background: var(--rs-elevated);
@@ -322,7 +330,7 @@
     box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.05);
   }
 
-  /* ── DECISION PANEL ────────────────────────────────────────── */
+  /* â”€â”€ DECISION PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .decision-panel {
     @apply rounded-3xl;
     background: var(--rs-surface);
@@ -336,7 +344,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(59, 130, 246, 0.06);
   }
 
-  /* ── BUTTONS ───────────────────────────────────────────────── */
+  /* â”€â”€ BUTTONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   /* Primary: solid green */
   .button-primary {
@@ -397,7 +405,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
-  /* ── FORM FIELDS ───────────────────────────────────────────── */
+  /* â”€â”€ FORM FIELDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .field {
     @apply w-full rounded-xl px-4 py-3 outline-none transition-all duration-200 text-sm font-medium;
     background: var(--rs-surface);
@@ -437,13 +445,13 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
 
-  /* ── LABEL ─────────────────────────────────────────────────── */
+  /* â”€â”€ LABEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .label {
     @apply mb-1.5 block text-sm font-semibold;
     color: var(--rs-text-secondary);
   }
 
-  /* ── PILLS & TAGS ───────────────────────────────────────────── */
+  /* â”€â”€ PILLS & TAGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .pill {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
     background: var(--rs-elevated);
@@ -475,7 +483,7 @@
     color: var(--rs-accent);
   }
 
-  /* ── GLASS CARD (dark mode only, degrades gracefully in light) */
+  /* â”€â”€ GLASS CARD (dark mode only, degrades gracefully in light) */
   .glass-card-3d {
     @apply relative overflow-hidden rounded-3xl transition-all duration-500;
     background: var(--rs-surface);
@@ -501,7 +509,7 @@
     border-color: #3f3f46;
   }
 
-  /* ── GLASS HERO (section-level hero card) ───────────────────── */
+  /* â”€â”€ GLASS HERO (section-level hero card) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .glass-hero {
     @apply relative overflow-hidden rounded-[2rem] transition-all duration-500;
     background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%);
@@ -517,7 +525,7 @@
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 40px rgba(59, 130, 246, 0.04);
   }
 
-  /* ── GLASS STRIP (navbar) ───────────────────────────────────── */
+  /* â”€â”€ GLASS STRIP (navbar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .glass-strip {
     background: var(--rs-surface);
     border: 1px solid var(--rs-border);
@@ -532,13 +540,13 @@
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
   }
 
-  /* ── SECTION HEADLINE ───────────────────────────────────────── */
+  /* â”€â”€ SECTION HEADLINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .section-headline {
     @apply text-3xl font-bold;
     color: var(--rs-text-primary);
   }
 
-  /* ── CTA SECTION ────────────────────────────────────────────── */
+  /* â”€â”€ CTA SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .cta-banner {
     @apply overflow-hidden relative;
     background: var(--rs-elevated);
@@ -553,7 +561,7 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
-  /* ── HERO DISPLAY TEXT ──────────────────────────────────────── */
+  /* â”€â”€ HERO DISPLAY TEXT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .hero-display {
     @apply text-5xl font-extrabold tracking-tight md:text-7xl;
     color: var(--rs-text-primary);
@@ -563,7 +571,7 @@
     color: var(--rs-text-secondary);
   }
 
-  /* ── HERO MESH OVERLAY ──────────────────────────────────────── */
+  /* â”€â”€ HERO MESH OVERLAY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .hero-mesh {
     @apply relative overflow-hidden;
   }
@@ -579,7 +587,7 @@
     mask-image: radial-gradient(circle at top right, black, transparent 70%);
   }
 
-  /* ── ANIMATED SHIMMER TEXT (main headline gradient) ────────── */
+  /* â”€â”€ ANIMATED SHIMMER TEXT (main headline gradient) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .text-shimmer {
     background: linear-gradient(110deg,
         #2563eb 0%,
@@ -605,7 +613,7 @@
     -webkit-text-fill-color: transparent;
   }
 
-  /* ── TEXT GLOW (dark only) ──────────────────────────────────── */
+  /* â”€â”€ TEXT GLOW (dark only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .text-glow {
     /* Light: no glow, just color */
   }
@@ -614,7 +622,7 @@
     text-shadow: 0 0 24px rgba(59, 130, 246, 0.3), 0 0 48px rgba(59, 130, 246, 0.12);
   }
 
-  /* ── BENTO / LAYOUT ─────────────────────────────────────────── */
+  /* â”€â”€ BENTO / LAYOUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .bento-grid {
     @apply grid grid-cols-12 gap-5;
   }
@@ -639,7 +647,7 @@
     @apply col-span-12 md:col-span-6 lg:col-span-3;
   }
 
-  /* ── STATUS BADGES ──────────────────────────────────────────── */
+  /* â”€â”€ STATUS BADGES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .badge-active {
     @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold;
     background: #dbeafe;
@@ -684,7 +692,7 @@
     color: #93c5fd;
   }
 
-  /* ── ALERT VARIANTS ─────────────────────────────────────────── */
+  /* â”€â”€ ALERT VARIANTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .alert-critical {
     @apply rounded-xl border-l-4 border-red-500 p-4;
     background: #fef2f2;
@@ -729,12 +737,12 @@
     color: #93c5fd;
   }
 
-  /* ── METRIC CARD ────────────────────────────────────────────── */
+  /* â”€â”€ METRIC CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .metric-card {
     @apply card relative overflow-hidden p-5;
   }
 
-  /* ── PROGRESS BARS ──────────────────────────────────────────── */
+  /* â”€â”€ PROGRESS BARS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .progress-critical {
     @apply bg-red-500;
   }
@@ -751,7 +759,7 @@
     @apply bg-green-500;
   }
 
-  /* ── TRANSITIONS ────────────────────────────────────────────── */
+  /* â”€â”€ TRANSITIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .transition-smooth {
     @apply transition-all duration-300 ease-out;
   }
@@ -760,7 +768,7 @@
     @apply transition-all duration-300 hover:-translate-y-0.5;
   }
 
-  /* ── BORDER ACCENTS ─────────────────────────────────────────── */
+  /* â”€â”€ BORDER ACCENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .border-accent-left {
     @apply border-l-4;
     border-color: var(--rs-accent);
@@ -803,7 +811,7 @@
     @apply border-blue-500;
   }
 
-  /* ── ANIMATIONS ─────────────────────────────────────────────── */
+  /* â”€â”€ ANIMATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .reveal-up {
     animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
@@ -816,7 +824,7 @@
     animation: scale-pop 0.4s ease-out both;
   }
 
-  /* Orb / ambient floating — dark mode only */
+  /* Orb / ambient floating â€” dark mode only */
   .orb-1 {
     animation: orb-float-1 18s ease-in-out infinite;
   }
@@ -841,7 +849,7 @@
     animation: counter-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
-  /* ── GLASS & DEPTH (dark-only utilities kept for compatibility) */
+  /* â”€â”€ GLASS & DEPTH (dark-only utilities kept for compatibility) */
   .glass-stat {
     @apply relative overflow-hidden rounded-2xl transition-all duration-300;
     background: var(--rs-surface);
@@ -862,7 +870,7 @@
     transform-style: preserve-3d;
   }
 
-  /* ── WORD REVEAL ────────────────────────────────────────────── */
+  /* â”€â”€ WORD REVEAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .word-reveal {
     display: inline-block;
     overflow: hidden;
@@ -873,13 +881,13 @@
     animation: word-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  /* ── GRADIENT BORDER ────────────────────────────────────────── */
+  /* â”€â”€ GRADIENT BORDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .gradient-border {
     position: relative;
     background: transparent;
   }
 
-  /* ── STATUS PULSE ───────────────────────────────────────────── */
+  /* â”€â”€ STATUS PULSE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .status-pulse {
     position: relative;
   }
@@ -893,7 +901,7 @@
     animation: pulse-expand 2s ease-out infinite;
   }
 
-  /* ── LINE SCAN (dark only) ──────────────────────────────────── */
+  /* â”€â”€ LINE SCAN (dark only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .dark .line-scan::after {
     content: "";
     position: absolute;
@@ -904,11 +912,19 @@
     animation: line-scan 6s ease-in-out infinite;
     pointer-events: none;
   }
+
+  @keyframes pulse-emerald {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  }
+  .animate-pulse-emerald {
+    animation: pulse-emerald 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    KEYFRAMES
-═══════════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @layer components {
   @keyframes aurora {
     0% {
@@ -1145,11 +1161,19 @@
       opacity: 0.45;
     }
   }
+
+  @keyframes pulse-emerald {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  }
+  .animate-pulse-emerald {
+    animation: pulse-emerald 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    UTILITIES
-═══════════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @layer utilities {
 
   /* Accessibility skip link */
@@ -1301,5 +1325,13 @@
     .word-reveal>span {
       animation: none !important;
     }
+  }
+
+  @keyframes pulse-emerald {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  }
+  .animate-pulse-emerald {
+    animation: pulse-emerald 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }
